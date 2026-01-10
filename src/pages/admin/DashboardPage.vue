@@ -10,7 +10,7 @@
           </q-card-section>
         </q-card>
       </div>
-      
+
       <!-- Stats Cards -->
       <div class="col-12 col-md-3">
         <q-card class="bg-primary text-white">
@@ -27,7 +27,7 @@
           </q-card-section>
         </q-card>
       </div>
-      
+
       <div class="col-12 col-md-3">
         <q-card class="bg-positive text-white">
           <q-card-section>
@@ -43,7 +43,7 @@
           </q-card-section>
         </q-card>
       </div>
-      
+
       <div class="col-12 col-md-3">
         <q-card class="bg-warning text-white">
           <q-card-section>
@@ -59,7 +59,7 @@
           </q-card-section>
         </q-card>
       </div>
-      
+
       <div class="col-12 col-md-3">
         <q-card class="bg-info text-white">
           <q-card-section>
@@ -75,7 +75,7 @@
           </q-card-section>
         </q-card>
       </div>
-      
+
       <!-- Recent Orders Chart -->
       <div class="col-12 col-md-8">
         <q-card>
@@ -83,20 +83,20 @@
             <div class="text-h6">Recent Orders</div>
             <div class="text-subtitle2 text-grey-7">Last 7 days</div>
           </q-card-section>
-          
+
           <q-card-section>
             <canvas id="ordersChart" width="400" height="200"></canvas>
           </q-card-section>
         </q-card>
       </div>
-      
+
       <!-- Quick Actions -->
       <div class="col-12 col-md-4">
         <q-card>
           <q-card-section>
             <div class="text-h6">Quick Actions</div>
           </q-card-section>
-          
+
           <q-list>
             <q-item clickable to="/inventory">
               <q-item-section avatar>
@@ -107,7 +107,7 @@
                 <q-item-label caption>Add or update products</q-item-label>
               </q-item-section>
             </q-item>
-            
+
             <q-item clickable to="/ordering">
               <q-item-section avatar>
                 <q-icon name="shopping_cart" color="positive" />
@@ -117,7 +117,7 @@
                 <q-item-label caption>View and manage orders</q-item-label>
               </q-item-section>
             </q-item>
-            
+
             <q-item clickable>
               <q-item-section avatar>
                 <q-icon name="assessment" color="warning" />
@@ -145,14 +145,16 @@ const pendingOrders = ref(8)
 // Sample data for chart
 const chartData = {
   labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  datasets: [{
-    label: 'Orders',
-    data: [12, 19, 15, 25, 22, 30, 18],
-    backgroundColor: 'rgba(33, 150, 243, 0.2)',
-    borderColor: 'rgba(33, 150, 243, 1)',
-    borderWidth: 2,
-    tension: 0.4
-  }]
+  datasets: [
+    {
+      label: 'Orders',
+      data: [12, 19, 15, 25, 22, 30, 18],
+      backgroundColor: 'rgba(33, 150, 243, 0.2)',
+      borderColor: 'rgba(33, 150, 243, 1)',
+      borderWidth: 2,
+      tension: 0.4,
+    },
+  ],
 }
 
 onMounted(() => {
@@ -166,10 +168,10 @@ onMounted(() => {
     const padding = 40
     const data = chartData.datasets[0].data
     const maxValue = Math.max(...data)
-    
+
     // Clear canvas
     ctx.clearRect(0, 0, width, height)
-    
+
     // Draw axes
     ctx.strokeStyle = '#e0e0e0'
     ctx.lineWidth = 1
@@ -178,31 +180,31 @@ onMounted(() => {
     ctx.lineTo(padding, height - padding)
     ctx.lineTo(width - padding, height - padding)
     ctx.stroke()
-    
+
     // Draw data points and lines
     ctx.strokeStyle = chartData.datasets[0].borderColor
     ctx.lineWidth = 2
     ctx.beginPath()
-    
+
     data.forEach((value, index) => {
       const x = padding + (index * (width - 2 * padding)) / (data.length - 1)
       const y = height - padding - (value / maxValue) * (height - 2 * padding)
-      
+
       if (index === 0) {
         ctx.moveTo(x, y)
       } else {
         ctx.lineTo(x, y)
       }
-      
+
       // Draw point
       ctx.fillStyle = chartData.datasets[0].borderColor
       ctx.beginPath()
       ctx.arc(x, y, 4, 0, 2 * Math.PI)
       ctx.fill()
     })
-    
+
     ctx.stroke()
-    
+
     // Draw labels
     ctx.fillStyle = '#666'
     ctx.font = '12px Arial'
