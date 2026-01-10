@@ -9,7 +9,6 @@ export const useProductStore = defineStore('productStore', {
   }),
 
   actions: {
-    // Fetch all products from Firestore
     async fetchProducts() {
       this.loading = true
       try {
@@ -25,7 +24,6 @@ export const useProductStore = defineStore('productStore', {
       }
     },
 
-    // Add a new product
     async addProduct(product) {
       try {
         const docRef = await addDoc(collection(db, "products"), product)

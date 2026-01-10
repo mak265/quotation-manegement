@@ -200,7 +200,6 @@ const handleSaveProduct = async () => {
     }
     closeProductDialog()
   } catch {
-    // Fixed ESLint: Removed unused error variable
     $q.notify({ color: 'negative', message: 'Error saving product', icon: 'report_problem' })
   }
 }
@@ -224,7 +223,6 @@ const confirmDelete = (product) => {
 const closeProductDialog = () => {
   showAddProductDialog.value = false
   editingProduct.value = null
-  // Reset form
   Object.assign(productForm, {
     name: '',
     sku: '',
