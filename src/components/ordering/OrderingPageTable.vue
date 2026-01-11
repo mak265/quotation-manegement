@@ -3,13 +3,12 @@
     <div class="row q-col-gutter-md">
       <div class="col-12">
         <q-card flat bordered class="shadow-1 rounded-borders bg-white">
-          
           <div class="q-pa-md row items-center justify-between q-gutter-y-sm">
             <div>
               <div class="text-h6 text-weight-bold text-grey-9">Order Management</div>
               <div class="text-caption text-grey-6">Track and manage customer orders</div>
             </div>
-            
+
             <q-btn
               color="primary"
               icon="add_shopping_cart"
@@ -26,10 +25,10 @@
           <div class="q-pa-md bg-grey-1">
             <div class="row q-col-gutter-sm">
               <div class="col-12 col-md-4">
-                <q-input 
-                  v-model="searchQuery" 
-                  outlined 
-                  dense 
+                <q-input
+                  v-model="searchQuery"
+                  outlined
+                  dense
                   bg-color="white"
                   placeholder="Search by ID or Customer..."
                 >
@@ -76,16 +75,18 @@
 
             <template v-slot:body-cell-id="props">
               <q-td :props="props">
-                <span class="text-mono text-grey-8 text-weight-medium">#{{ props.value.substring(0, 8) }}...</span>
+                <span class="text-mono text-grey-8 text-weight-medium"
+                  >#{{ props.value.substring(0, 8) }}...</span
+                >
                 <q-tooltip>Full ID: {{ props.value }}</q-tooltip>
               </q-td>
             </template>
 
             <template v-slot:body-cell-status="props">
               <q-td :props="props">
-                <q-badge 
-                  :color="getStatusColor(props.row.status)" 
-                  rounded 
+                <q-badge
+                  :color="getStatusColor(props.row.status)"
+                  rounded
                   class="q-px-sm q-py-xs shadow-1"
                 >
                   {{ props.row.status }}
@@ -146,7 +147,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useOrderStore } from '../../stores/orderStore.js'
 import { useProductStore } from '../../stores/productStore.js'
 import { useQuasar } from 'quasar'
-import POSOrderDialog from 'src/components/admin/POSOrderingDialog.vue'
+import POSOrderDialog from 'src/components/ordering/POSOrderingDialog.vue'
 
 const $q = useQuasar()
 const orderStore = useOrderStore()
@@ -160,7 +161,14 @@ const statusOptions = ['All', 'Pending', 'Paid', 'Shipped', 'Cancelled']
 const columns = [
   { name: 'id', label: 'Order ID', field: 'id', align: 'left', style: 'width: 150px' },
   { name: 'customerName', label: 'Customer', field: 'customerName', align: 'left', sortable: true },
-  { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true, format: val => new Date(val).toLocaleDateString() },
+  {
+    name: 'date',
+    label: 'Date',
+    field: 'date',
+    align: 'left',
+    sortable: true,
+    format: (val) => new Date(val).toLocaleDateString(),
+  },
   { name: 'status', label: 'Status', field: 'status', align: 'center', sortable: true },
   { name: 'total', label: 'Total Amount', field: 'total', align: 'right', sortable: true },
   { name: 'actions', label: '', field: 'actions', align: 'center', style: 'width: 100px' },
@@ -177,18 +185,20 @@ const filteredOrders = computed(() => {
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(
-      (o) => (o.customerName && o.customerName.toLowerCase().includes(q)) || (o.id && o.id.toLowerCase().includes(q)),
+      (o) =>
+        (o.customerName && o.customerName.toLowerCase().includes(q)) ||
+        (o.id && o.id.toLowerCase().includes(q)),
     )
   }
   return list
 })
 
 const getStatusColor = (status) => {
-  const map = { 
-    Pending: 'orange-7', 
-    Paid: 'green-6', 
-    Shipped: 'blue-6', 
-    Cancelled: 'red-5' 
+  const map = {
+    Pending: 'orange-7',
+    Paid: 'green-6',
+    Shipped: 'blue-6',
+    Cancelled: 'red-5',
   }
   return map[status] || 'grey-6'
 }
@@ -211,11 +221,11 @@ const handleCreateOrder = async (orderData) => {
 const confirmDelete = (order) => {
   $q.dialog({
     title: 'Delete Order',
-    message: `Are you sure you want to delete order #${order.id.substring(0,8)}?`,
+    message: `Are you sure you want to delete order #${order.id.substring(0, 8)}?`,
     // cancel: true, // <--- REMOVE THIS LINE
     persistent: true,
     ok: { label: 'Delete', color: 'negative', flat: true },
-    cancel: { label: 'Cancel', color: 'grey-8', flat: true } // Keep this detailed one
+    cancel: { label: 'Cancel', color: 'grey-8', flat: true }, // Keep this detailed one
   }).onOk(async () => {
     await orderStore.deleteOrder(order.id)
     $q.notify({ message: 'Order deleted', color: 'grey-8', icon: 'delete' })

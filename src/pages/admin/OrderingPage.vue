@@ -5,5 +5,5 @@
 </template>
 
 <script setup>
-import OrderingPageTable from 'src/components/admin/OrderingPageTable.vue'
+import OrderingPageTable from 'src/components/ordering/OrderingPageTable.vue'
 </script>
