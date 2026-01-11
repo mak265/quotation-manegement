@@ -9,7 +9,8 @@ const firebaseConfig = {
   storageBucket: "fwds-pos-management.firebasestorage.app",
   messagingSenderId: "609810141574",
   appId: "1:609810141574:web:e7e827a6b7e14bbe6e5c07",
-  measurementId: "G-L5CEZ2PWVW"
+  measurementId: "G-L5CEZ2PWVW",
+  db: "https://fwds-pos-management-default-rtdb.firebaseio.com"
 }
 
 const app = initializeApp(firebaseConfig)
