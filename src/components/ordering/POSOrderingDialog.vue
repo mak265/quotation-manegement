@@ -49,7 +49,7 @@
                     dense
                     class="text-grey-7"
                   >
-                    <q-tab v-for="cat in categories" :key="cat" :name="cat" :label="cat" />
+                    <q-tab v-for="cat in dynamicCategories" :key="cat" :name="cat" :label="cat" />
                   </q-tabs>
                 </div>
               </div>
@@ -88,7 +88,12 @@
               </div>
             </div>
 
-            <q-scroll-area class="col q-pr-sm">
+            <q-scroll-area class="col q-pr-sm relative-position">
+              <q-inner-loading :showing="loadingProducts">
+                <q-spinner-gears size="50px" color="primary" />
+                <div class="text-primary q-mt-sm">Loading Inventory...</div>
+              </q-inner-loading>
+
               <div class="row q-col-gutter-md">
                 <div
                   v-for="product in sortedProducts"
@@ -114,12 +119,19 @@
                       :src="item.product.image"
                       style="width: 50px; height: 50px"
                       class="rounded-borders"
-                    />
+                      fit="cover"
+                    >
+                      <template v-slot:error>
+                        <div class="absolute-full flex flex-center bg-grey-3 text-grey">
+                          <q-icon name="image_not_supported" />
+                        </div>
+                      </template>
+                    </q-img>
                   </q-item-section>
 
                   <q-item-section>
                     <div class="row items-center justify-between">
-                      <div class="text-subtitle2">{{ item.product.name }}</div>
+                      <div class="text-subtitle2">{{ item.product.productName }}</div>
                       <div class="text-weight-bold">
                         ${{ (item.unitPrice * item.quantity).toFixed(2) }}
                       </div>
@@ -169,6 +181,7 @@
               :discount-rate="discountRate"
               :cart-length="cart.length"
               :customer-name="customer.name"
+              :total-items="totalItems"
               @clear-cart="clearCart"
               @pay-now="submitOrder"
               @save-draft="saveAsDraft"
@@ -181,7 +194,7 @@
         <q-card style="width: 500px; max-width: 100vw" class="rounded-borders-top">
           <div v-if="activeProduct">
             <q-card-section class="row items-center q-pb-none">
-              <div class="text-h6">{{ activeProduct.name }}</div>
+              <div class="text-h6">{{ activeProduct.productName }}</div>
               <q-space />
               <q-btn icon="close" flat round dense v-close-popup />
             </q-card-section>
@@ -192,7 +205,13 @@
                   :src="activeProduct.image"
                   class="rounded-borders"
                   style="height: 100px; object-fit: cover"
-                />
+                >
+                  <template v-slot:error>
+                    <div class="absolute-full flex flex-center bg-grey-3">
+                      <q-icon name="fastfood" color="grey" />
+                    </div>
+                  </template>
+                </q-img>
               </div>
 
               <div class="col-8 column justify-center">
@@ -292,17 +311,20 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { date, useQuasar } from 'quasar'
-import { useOrderStore } from 'src/stores/orderStore'
-// Assuming these exist in your project
+
+// --- FIREBASE IMPORTS ---
+import { db } from 'src/services/firebase' // Adjust path to your firebase config
+import { collection, onSnapshot, query, addDoc, serverTimestamp } from 'firebase/firestore'
+
+// Components
 import ProductCard from 'src/components/ordering/ProductCard.vue'
 import CustomerDetails from 'src/components/ordering/CustomerDetails.vue'
 import CheckoutSummary from 'src/components/ordering/CheckoutSummary.vue'
 
 // Initialize
 const $q = useQuasar()
-const orderStore = useOrderStore()
 
 // Props & Emits
 defineProps({
@@ -315,6 +337,10 @@ const search = ref('')
 const selectedCategory = ref('All')
 const sortBy = ref('name')
 const cart = ref([])
+const products = ref([]) // Now empty initially
+const loadingProducts = ref(true)
+let unsubscribeProducts = null // For cleanup
+
 const customer = reactive({
   name: '',
   email: '',
@@ -334,7 +360,6 @@ const customizationForm = reactive({
 // Constants
 const taxRate = 0.08
 const discountRate = 0.05
-const categories = ['All', 'Hot Coffee', 'Iced Coffee', 'Pastries', 'Beans', 'Merchandise']
 
 const sortOptions = [
   { label: 'Name A-Z', value: 'name' },
@@ -343,118 +368,33 @@ const sortOptions = [
   { label: 'Category', value: 'category' },
 ]
 
-// Updated Products data with Sizes and Addons
-const products = ref([
-  {
-    id: 1,
-    sku: 'COF-001',
-    name: 'Espresso',
-    description: 'Rich, concentrated coffee served in a small cup.',
-    category: 'Hot Coffee',
-    price: 3.5,
-    originalPrice: null,
-    image: 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400',
-    stock: 100,
-    sizes: [
-      { label: 'Single', price: 0 },
-      { label: 'Double', price: 1.5 },
-    ],
-    addons: [
-      { label: 'Sugar', price: 0 },
-      { label: 'Cream', price: 0.5 },
-    ],
-  },
-  {
-    id: 2,
-    sku: 'COF-002',
-    name: 'Cappuccino',
-    description: 'Espresso with steamed milk and a thick layer of foam.',
-    category: 'Hot Coffee',
-    price: 4.5,
-    originalPrice: 5.0,
-    image: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400',
-    stock: 85,
-    sizes: [
-      { label: 'Small', price: 0 },
-      { label: 'Medium', price: 0.75 },
-      { label: 'Large', price: 1.5 },
-    ],
-    addons: [
-      { label: 'Extra Shot', price: 1.0 },
-      { label: 'Soy Milk', price: 0.75 },
-      { label: 'Caramel', price: 0.5 },
-    ],
-  },
-  {
-    id: 7,
-    sku: 'PAS-002',
-    name: 'Chocolate Muffin',
-    description: 'Rich chocolate muffin with chocolate chips.',
-    category: 'Pastries',
-    price: 3.75,
-    originalPrice: 4.25,
-    image: 'https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=400',
-    stock: 18,
-    sizes: [], // No sizes for food typically
-    addons: [
-      { label: 'Warmed Up', price: 0 },
-      { label: 'Butter', price: 0.5 },
-    ],
-  },
-  {
-    id: 8,
-    sku: 'BEA-001',
-    name: 'Signature Blend Beans',
-    description: 'Our house signature blend, medium roast.',
-    category: 'Beans',
-    price: 15.0,
-    originalPrice: 18.0,
-    image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400',
-    stock: 30,
-    sizes: [
-      { label: '250g', price: 0 },
-      { label: '500g', price: 12.0 }, // +12 on top of base 15 = 27
-      { label: '1kg', price: 25.0 },
-    ],
-    addons: [
-      { label: 'Grind for Espresso', price: 0 },
-      { label: 'Grind for Filter', price: 0 },
-    ],
-  },
-  {
-    id: 9,
-    sku: 'MER-001',
-    name: 'Ceramic Mug',
-    description: 'Classic white ceramic mug with our logo.',
-    category: 'Merchandise',
-    price: 12.5,
-    originalPrice: null,
-    image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=400',
-    stock: 50,
-    sizes: [],
-    addons: [],
-  },
-])
+// --- Computed Properties ---
 
-// Computed Properties
 const currentDate = computed(() => {
   return date.formatDate(Date.now(), 'ddd, DD MMM YYYY • hh:mm A')
+})
+
+// Dynamically generate categories based on available products
+const dynamicCategories = computed(() => {
+  const cats = new Set(['All'])
+  products.value.forEach((p) => {
+    if (p.productCategory) cats.add(p.productCategory)
+  })
+  return Array.from(cats)
 })
 
 const filteredProducts = computed(() => {
   let list = products.value
 
   if (selectedCategory.value !== 'All') {
-    list = list.filter((p) => p.category === selectedCategory.value)
+    list = list.filter((p) => p.productCategory === selectedCategory.value)
   }
 
   if (search.value) {
     const q = search.value.toLowerCase()
     list = list.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q),
+        (p.productName || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q),
     )
   }
   return list
@@ -464,43 +404,45 @@ const sortedProducts = computed(() => {
   const list = [...filteredProducts.value]
   switch (sortBy.value) {
     case 'price-asc':
-      return list.sort((a, b) => a.price - b.price)
+      return list.sort((a, b) => a.productPrice - b.productPrice)
     case 'price-desc':
-      return list.sort((a, b) => b.price - a.price)
+      return list.sort((a, b) => b.productPrice - a.productPrice)
     case 'category':
-      return list.sort((a, b) => a.category.localeCompare(b.category))
+      return list.sort((a, b) => (a.productCategory || '').localeCompare(b.productCategory || ''))
     default:
-      return list.sort((a, b) => a.name.localeCompare(b.name))
+      return list.sort((a, b) => (a.productName || '').localeCompare(b.productName || ''))
   }
 })
 
-// Calculate price dynamically for the popup
+const totalItems = computed(() => {
+  return cart.value.reduce((total, item) => total + item.quantity, 0)
+})
+
 const customizedPrice = computed(() => {
   if (!activeProduct.value) return 0
 
-  let total = activeProduct.value.price
+  // Base price
+  let total = Number(activeProduct.value.productPrice) || 0
 
   // Add Size Price
   if (customizationForm.size) {
-    total += customizationForm.size.price
+    total += Number(customizationForm.size.price) || 0
   }
 
   // Add Add-ons Price
   customizationForm.addons.forEach((addon) => {
-    total += addon.price
+    total += Number(addon.price) || 0
   })
 
   return total
 })
 
-// Calculate total cart value
 const subtotal = computed(() => {
   return cart.value.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
 })
 
-// Methods
+// --- Methods ---
 
-// 1. Open Dialog
 const promptAddToCart = (product) => {
   activeProduct.value = JSON.parse(JSON.stringify(product)) // Deep copy
 
@@ -513,23 +455,20 @@ const promptAddToCart = (product) => {
   customizationDialog.value = true
 }
 
-// 2. Add Item to Cart
 const confirmAddToCart = () => {
-  // Create cart item object
   const cartItem = {
-    product: { ...activeProduct.value }, // Keep original product info
+    product: { ...activeProduct.value },
     selectedSize: customizationForm.size,
     selectedAddons: [...customizationForm.addons],
     note: customizationForm.note,
     quantity: customizationForm.quantity,
-    unitPrice: customizedPrice.value, // Store the calculated unit price
+    unitPrice: customizedPrice.value,
   }
 
-  // Push to cart
   cart.value.push(cartItem)
 
   $q.notify({
-    message: `${activeProduct.value.name} added`,
+    message: `${activeProduct.value.productName} added`,
     caption: `+ $${(cartItem.unitPrice * cartItem.quantity).toFixed(2)}`,
     color: 'positive',
     icon: 'add_shopping_cart',
@@ -582,50 +521,44 @@ const saveAsDraft = () => {
   })
 }
 
-const submitOrder = async () => {
+// Receive calculation summary from CheckoutSummary component
+const submitOrder = async (summaryData) => {
   if (!customer.name) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please enter customer name',
-      icon: 'warning',
-    })
+    $q.notify({ type: 'warning', message: 'Please enter customer name' })
     return
   }
 
-  const taxAmount = subtotal.value * taxRate
-  const discountAmount = subtotal.value * discountRate
-  const totalAmount = subtotal.value + taxAmount - discountAmount
-
+  // Prepare data for Firestore
   const orderData = {
     customer,
     status: 'Paid',
-    subtotal: subtotal.value,
-    taxAmount,
-    discountAmount,
-    totalAmount,
+    ...summaryData, // spread subtotal, tax, total from child
     items: cart.value.map((item) => ({
-      id: item.product.id,
-      name: item.product.name,
-      sku: item.product.sku,
+      productId: item.product.id,
+      name: item.product.productName,
+      sku: item.product.sku || 'N/A',
       variant: item.selectedSize ? item.selectedSize.label : 'Standard',
       addons: item.selectedAddons.map((a) => a.label),
       unitPrice: item.unitPrice,
       quantity: item.quantity,
       note: item.note,
     })),
+    createdAt: serverTimestamp(),
     orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
   }
 
   try {
-    await orderStore.addOrder(orderData)
+    // 1. Save to Firestore
+    await addDoc(collection(db, 'orders'), orderData)
+
+    // 2. (Optional) Update Pinia store if you cache orders there
+    // orderStore.addOrder(orderData)
 
     $q.notify({
       type: 'positive',
       message: `Order #${orderData.orderNumber} placed!`,
-      caption: `Total: $${totalAmount.toFixed(2)}`,
       icon: 'check_circle',
       position: 'top-right',
-      timeout: 3000,
     })
 
     clearCart()
@@ -634,14 +567,55 @@ const submitOrder = async () => {
     console.error('POS Error:', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to place order',
+      message: 'Failed to place order: ' + error.message,
       icon: 'error',
     })
   }
 }
 
+// --- Lifecycle Hooks ---
+
+// In src/components/ordering/POSOrderingDialog.vue
+
 onMounted(() => {
-  // Initialization if needed
+  const q = query(collection(db, 'products'))
+
+  unsubscribeProducts = onSnapshot(
+    q,
+    (snapshot) => {
+      products.value = snapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          // 1. SPREAD original data
+          ...data,
+
+          // 2. MAP Firestore fields to UI fields
+          // If data.productName exists, use it; otherwise fallback to data.name
+          name: data.productName || data.name || 'Unknown Item',
+
+          // Ensure price is a Number. Default to 0 if missing.
+          price: Number(data.productPrice || data.price || 0),
+
+          category: data.productCategory || data.category || 'Other',
+          image: data.image || 'https://via.placeholder.com/150', // Fallback image
+
+          // 3. SAFEGUARDS for arrays
+          sizes: Array.isArray(data.sizes) ? data.sizes : [],
+          addons: Array.isArray(data.addons) ? data.addons : [],
+        }
+      })
+      loadingProducts.value = false
+    },
+    (error) => {
+      console.error('Error fetching products:', error)
+      loadingProducts.value = false
+    },
+  )
+})
+onUnmounted(() => {
+  // Stop listening when dialog closes to save bandwidth
+  if (unsubscribeProducts) unsubscribeProducts()
 })
 </script>
 

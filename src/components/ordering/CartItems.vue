@@ -6,7 +6,7 @@
         Cart Items ({{ items.length }})
       </div>
     </div>
-    
+
     <q-scroll-area class="col">
       <q-list separator class="q-py-sm">
         <q-item v-if="items.length === 0" class="text-grey text-center q-pa-xl column flex-center">
@@ -16,20 +16,18 @@
         </q-item>
 
         <transition-group name="list-slide">
-          <q-item 
-            v-for="(item, index) in items" 
-            :key="item.product.id"
-            class="q-py-sm"
-          >
+          <q-item v-for="item in items" :key="item.id || item.product?.id" class="q-py-sm">
             <q-item-section avatar>
-              <q-avatar rounded size="60px">
-                <img :src="item.product.image" />
-                <q-badge 
-                  floating 
-                  rounded 
-                  color="primary"
-                  class="text-caption"
-                >
+              <q-avatar rounded size="60px" color="grey-3">
+                <q-img
+                  v-if="item.product?.image"
+                  :src="item.product.image"
+                  ratio="1"
+                  class="rounded-borders"
+                />
+                <q-icon v-else name="local_cafe" color="grey-5" />
+
+                <q-badge floating rounded color="primary" class="text-caption">
                   {{ item.quantity }}
                 </q-badge>
               </q-avatar>
@@ -37,17 +35,19 @@
 
             <q-item-section>
               <q-item-label class="text-weight-bold text-grey-9">
-                {{ item.product.name }}
+                {{ item.product?.productName || 'Unknown Item' }}
               </q-item-label>
+
               <q-item-label caption class="text-grey-6">
-                SKU: {{ item.product.sku }}
+                {{ item.product?.productCategory || 'General' }}
               </q-item-label>
+
               <q-item-label>
                 <span class="text-subtitle2 text-primary text-weight-bold">
-                  ${{ (item.product.price * item.quantity).toFixed(2) }}
+                  ${{ ((item.product?.productPrice || 0) * item.quantity).toFixed(2) }}
                 </span>
                 <span class="text-caption text-grey-6 q-ml-sm">
-                  (${{ item.product.price.toFixed(2) }} each)
+                  (${{ (item.product?.productPrice || 0).toFixed(2) }} ea)
                 </span>
               </q-item-label>
             </q-item-section>
@@ -56,22 +56,34 @@
               <div class="column items-center">
                 <div class="row items-center bg-grey-2 rounded-borders">
                   <q-btn
-                    round flat dense size="sm"
+                    round
+                    flat
+                    dense
+                    size="sm"
                     icon="remove"
                     color="grey-7"
-                    @click.stop="$emit('update-quantity', index, -1)"
+                    @click.stop="$emit('update-quantity', item, -1)"
                     :disable="item.quantity <= 1"
                   />
-                  <span class="text-body1 q-mx-sm text-weight-bold" style="min-width: 24px; text-align: center">
+
+                  <span
+                    class="text-body1 q-mx-sm text-weight-bold"
+                    style="min-width: 24px; text-align: center"
+                  >
                     {{ item.quantity }}
                   </span>
+
                   <q-btn
-                    round flat dense size="sm"
+                    round
+                    flat
+                    dense
+                    size="sm"
                     icon="add"
                     color="primary"
-                    @click.stop="$emit('update-quantity', index, 1)"
+                    @click.stop="$emit('update-quantity', item, 1)"
                   />
                 </div>
+
                 <q-btn
                   flat
                   dense
@@ -79,7 +91,7 @@
                   icon="delete"
                   size="sm"
                   class="q-mt-xs"
-                  @click.stop="$emit('remove-item', index)"
+                  @click.stop="$emit('remove-item', item)"
                 />
               </div>
             </q-item-section>
@@ -95,10 +107,11 @@ defineProps({
   items: {
     type: Array,
     required: true,
-    default: () => []
-  }
+    default: () => [],
+  },
 })
 
+// We now pass the whole ITEM object, not the index
 defineEmits(['update-quantity', 'remove-item'])
 </script>
 
@@ -115,16 +128,16 @@ defineEmits(['update-quantity', 'remove-item'])
   opacity: 0;
   transform: translateX(20px);
 }
+/* Ensure smooth removal animation */
 .list-slide-leave-active {
   position: absolute;
   width: 100%;
+  z-index: 0;
 }
 
-.q-scrollarea__thumb {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.q-scrollarea__thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+.cart-items {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 </style>
