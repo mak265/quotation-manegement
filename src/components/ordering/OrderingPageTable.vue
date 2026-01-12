@@ -96,14 +96,22 @@
 
             <template v-slot:body-cell-total="props">
               <q-td :props="props" class="text-weight-bold text-primary">
-                ${{ Number(props.row.total || 0).toFixed(2) }}
+                {{
+                  (() => {
+                    const t = props.row.total ?? props.row.totalAmount
+                    if (typeof t === 'number') return `$${t.toFixed(2)}`
+                    const items = Array.isArray(props.row.items) ? props.row.items : []
+                    const subtotal = items.reduce((s, i) => s + Number(i.unitPrice ?? i.price ?? 0) * Number(i.quantity ?? 1), 0)
+                    return `$${subtotal.toFixed(2)}`
+                  })()
+                }}
               </q-td>
             </template>
 
             <template v-slot:body-cell-actions="props">
               <q-td :props="props">
                 <div class="row justify-center q-gutter-x-sm">
-                  <q-btn flat round dense size="sm" color="grey-7" icon="visibility">
+                  <q-btn flat round dense size="sm" color="grey-7" icon="visibility" @click="openReceipt(props.row)">
                     <q-tooltip>View Details</q-tooltip>
                   </q-btn>
                   <q-btn
@@ -138,6 +146,7 @@
         :products="productStore.products"
         @create="handleCreateOrder"
       />
+      <ReceiptDialog v-model="showReceiptDialog" :order="selectedOrder" />
     </div>
   </div>
 </template>
@@ -148,6 +157,7 @@ import { useOrderStore } from '../../stores/orderStore.js'
 import { useProductStore } from '../../stores/productStore.js'
 import { useQuasar } from 'quasar'
 import POSOrderDialog from 'src/components/ordering/POSOrderingDialog.vue'
+import ReceiptDialog from 'src/components/ordering/ReceiptDialog.vue'
 
 const $q = useQuasar()
 const orderStore = useOrderStore()
@@ -156,6 +166,8 @@ const productStore = useProductStore()
 const searchQuery = ref('')
 const statusFilter = ref('All')
 const showPOSDialog = ref(false)
+const showReceiptDialog = ref(false)
+const selectedOrder = ref(null)
 const statusOptions = ['All', 'Pending', 'Paid', 'Shipped', 'Cancelled']
 
 const columns = [
@@ -164,10 +176,20 @@ const columns = [
   {
     name: 'date',
     label: 'Date',
-    field: 'date',
+    field: (row) => row.date ?? row.createdAt,
     align: 'left',
     sortable: true,
-    format: (val) => new Date(val).toLocaleDateString(),
+    format: (val) => {
+      try {
+        if (val && typeof val.toDate === 'function') {
+          return val.toDate().toLocaleDateString()
+        }
+        const d = new Date(val)
+        return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString()
+      } catch {
+        return '-'
+      }
+    },
   },
   { name: 'status', label: 'Status', field: 'status', align: 'center', sortable: true },
   { name: 'total', label: 'Total Amount', field: 'total', align: 'right', sortable: true },
@@ -230,6 +252,11 @@ const confirmDelete = (order) => {
     await orderStore.deleteOrder(order.id)
     $q.notify({ message: 'Order deleted', color: 'grey-8', icon: 'delete' })
   })
+}
+
+const openReceipt = (order) => {
+  selectedOrder.value = order
+  showReceiptDialog.value = true
 }
 </script>
 

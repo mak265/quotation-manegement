@@ -74,12 +74,32 @@ const searchQuery = ref('')
 const fromDate = ref('')
 const toDate = ref('')
 
+const normalizeDate = (d) => {
+  if (!d) return null
+  if (typeof d?.toDate === 'function') return d.toDate()
+  const js = new Date(d)
+  return Number.isNaN(js.getTime()) ? null : js
+}
+
+const computeTotal = (row) => {
+  const t = row.total ?? row.totalAmount
+  if (typeof t === 'number') return t
+  const items = Array.isArray(row.items) ? row.items : []
+  const subtotal = items.reduce((s, i) => s + Number(i.unitPrice ?? i.price ?? 0) * Number(i.quantity ?? 1), 0)
+  const tax = Number(row.taxAmount ?? 0)
+  const discount = Number(row.discountAmount ?? 0)
+  return subtotal + tax - discount
+}
+
 const columns = [
   { name: 'id', label: 'ID', field: 'id', align: 'left', sortable: true },
   { name: 'customerName', label: 'Customer', field: 'customerName', align: 'left', sortable: true },
-  { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true, format: val => new Date(val).toLocaleString() },
+  { name: 'date', label: 'Date', field: row => row.date ?? row.createdAt, align: 'left', sortable: true, format: val => {
+    const d = normalizeDate(val)
+    return d ? d.toLocaleString() : '-'
+  } },
   { name: 'status', label: 'Status', field: 'status', align: 'center', sortable: true },
-  { name: 'total', label: 'Total', field: 'total', align: 'right', sortable: true, format: val => `$${Number(val || 0).toFixed(2)}` },
+  { name: 'total', label: 'Total', field: row => computeTotal(row), align: 'right', sortable: true, format: val => `$${Number(val || 0).toFixed(2)}` },
 ]
 
 const filteredTransactions = computed(() => {
@@ -88,8 +108,8 @@ const filteredTransactions = computed(() => {
   const to = toDate.value ? new Date(toDate.value + 'T23:59:59') : null
   if (from || to) {
     list = list.filter(t => {
-      const d = new Date(t.date || t.createdAt)
-      if (Number.isNaN(d.getTime())) return false
+      const d = normalizeDate(t.date || t.createdAt)
+      if (!d) return false
       if (from && d < from) return false
       if (to && d > to) return false
       return true
