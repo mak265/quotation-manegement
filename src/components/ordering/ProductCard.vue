@@ -5,13 +5,13 @@
     v-ripple
   >
     <div class="relative-position">
-      <q-img 
-        :src="product.image" 
+      <q-img
+        :src="product.productImage || product.image"
         :ratio="4/3"
         class="rounded-tops"
       >
         <div class="absolute-top-right q-pa-xs">
-          <q-badge 
+          <q-badge
             :color="getCategoryColor(product.category)"
             class="text-caption"
           >
@@ -33,7 +33,7 @@
         </div>
       </div>
     </div>
-    
+
     <q-card-section class="q-pb-sm">
       <div class="text-weight-bold ellipsis text-grey-9">
         {{ product.name }}
@@ -47,10 +47,10 @@
       <div class="text-caption text-grey-6">
         Stock: {{ product.stock }}
       </div>
-      <q-btn 
-        flat 
-        dense 
-        color="primary" 
+      <q-btn
+        flat
+        dense
+        color="primary"
         icon="add_shopping_cart"
         size="sm"
         @click.stop="$emit('add-to-cart', product)"

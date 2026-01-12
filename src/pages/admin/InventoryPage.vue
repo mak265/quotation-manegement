@@ -182,6 +182,19 @@
               dense
               :rules="[(val) => !!val || 'Category is required']"
             />
+            <div class="row q-col-gutter-sm items-center">
+              <div class="col-12">
+                <q-file v-model="productImageFile" accept="image/*" outlined dense label="Product Image">
+                  <template v-slot:prepend><q-icon name="image" /></template>
+                  <template v-slot:append v-if="productImageFile">
+                    <q-icon name="close" class="cursor-pointer" @click="clearImage" />
+                  </template>
+                </q-file>
+              </div>
+              <div class="col-12" v-if="productImagePreview">
+                <q-img :src="productImagePreview" style="height: 140px" class="rounded-borders" />
+              </div>
+            </div>
           </q-form>
         </q-card-section>
 
@@ -277,7 +290,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useProductStore } from '../../stores/productStore'
 import { useCategoryStore } from '../../stores/categoryStore'
 import { useQuasar } from 'quasar'
@@ -305,6 +318,26 @@ const productForm = reactive({
 })
 
 const categoryForm = reactive({ name: '', description: '' })
+const productImageFile = ref(null)
+const productImagePreview = ref('')
+
+const clearImage = () => {
+  productImageFile.value = null
+  productImagePreview.value = ''
+}
+
+watch(productImageFile, (file) => {
+  const chosen = Array.isArray(file) ? file[0] : file
+  if (chosen && chosen instanceof File) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      productImagePreview.value = e.target.result
+    }
+    reader.readAsDataURL(chosen)
+  } else {
+    productImagePreview.value = ''
+  }
+})
 
 const columns = [
   { name: 'name', label: 'Product Name', field: 'productName', align: 'left', sortable: true },
@@ -382,6 +415,7 @@ const openEditDialog = (product) => {
     productCost: product.productCost,
     productStock: product.productStock,
     productCategory: product.productCategory,
+    productImage: product.productImage || ''
   })
   showAddProductDialog.value = true
 }
@@ -406,6 +440,9 @@ const submitForm = async () => {
 
 const handleSaveProduct = async () => {
   try {
+    if (productImagePreview.value) {
+      productForm.productImage = productImagePreview.value
+    }
     if (editingProduct.value) {
       await productStore.updateProduct(editingProduct.value.id, { ...productForm })
       $q.notify({ color: 'positive', message: 'Product updated successfully', icon: 'check' })
@@ -446,7 +483,9 @@ const closeProductDialog = () => {
     productCost: 0,
     productStock: 0,
     productCategory: '',
+    productImage: ''
   })
+  clearImage()
 }
 
 const getRowsForExport = () => {
