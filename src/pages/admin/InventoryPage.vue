@@ -11,15 +11,27 @@
 
           <q-card-section>
             <div class="row q-col-gutter-md q-mb-md">
+              <div class="col-12">
+                <div class="bg-white rounded-borders shadow-1 q-pa-xs">
+                  <q-tabs
+                    v-model="selectedInventoryTab"
+                    active-color="primary"
+                    indicator-color="primary"
+                    align="left"
+                    dense
+                    class="text-grey-7"
+                  >
+                    <q-tab name="products" label="Products" icon="inventory_2" />
+                    <q-tab name="addons" label="Add-ons" icon="extension" />
+                  </q-tabs>
+                </div>
+              </div>
               <div class="col-12 col-md-4">
                 <q-input v-model="searchQuery" outlined dense placeholder="Search">
                   <template v-slot:prepend><q-icon name="search" /></template>
                 </q-input>
               </div>
-              <div class="col-12 col-md-4">
-                <q-toggle v-model="showAddons" label="Show Add-ons" />
-              </div>
-              <div class="col-12 col-md-4" v-if="!showAddons">
+              <div class="col-12 col-md-4" v-if="selectedInventoryTab === 'products'">
                 <q-select
                   v-model="selectedCategory"
                   :options="categoryOptions"
@@ -29,7 +41,7 @@
                   emit-value
                 />
               </div>
-              <div class="col-12 col-md-4" v-if="!showAddons">
+              <div class="col-12 col-md-4" v-if="selectedInventoryTab === 'products'">
                 <q-select
                   v-model="selectedStock"
                   :options="stockOptions"
@@ -39,7 +51,7 @@
                   emit-value
                 />
               </div>
-              <div class="col-12 col-md-4" v-if="showAddons">
+              <div class="col-12 col-md-4" v-if="selectedInventoryTab === 'addons'">
                 <q-select
                   v-model="selectedAddonAvailability"
                   :options="addonAvailabilityOptions"
@@ -49,7 +61,7 @@
                   emit-value
                 />
               </div>
-              <div class="col-12 col-md-4" v-if="showAddons">
+              <div class="col-12 col-md-4" v-if="selectedInventoryTab === 'addons'">
                 <q-select
                   v-model="selectedAddonCategory"
                   :options="addonCategoryFilterOptions"
@@ -59,7 +71,7 @@
                   emit-value
                 />
               </div>
-              <div class="col-12" v-if="!showAddons">
+              <div class="col-12" v-if="selectedInventoryTab === 'products'">
                 <q-btn
                   color="primary"
                   icon="category"
@@ -81,7 +93,7 @@
                   @click="showExportDialog = true"
                 />
               </div>
-              <div class="col-12" v-else>
+              <div class="col-12" v-if="selectedInventoryTab === 'addons'">
                 <q-btn
                   color="primary"
                   icon="add"
@@ -98,7 +110,7 @@
               :loading="productStore.loading"
               flat
               bordered
-              v-if="!showAddons"
+              v-if="selectedInventoryTab === 'products'"
             >
               <template v-slot:no-data="{ filter }">
                 <div class="full-width row flex-center q-gutter-sm q-pa-lg text-grey-8">
@@ -152,7 +164,7 @@
               :loading="addonStore.loading"
               flat
               bordered
-              v-else
+              v-if="selectedInventoryTab === 'addons'"
             >
               <template v-slot:body-cell-status="props">
                 <q-td :props="props">
@@ -387,7 +399,7 @@ const addonStore = useAddonStore()
 const searchQuery = ref('')
 const selectedCategory = ref('All')
 const selectedStock = ref('All')
-const showAddons = ref(false)
+const selectedInventoryTab = ref('products')
 const showAddProductDialog = ref(false)
 const editingProduct = ref(null)
 const showAddCategoryDialog = ref(false)

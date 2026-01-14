@@ -114,17 +114,6 @@
                   >
                     <q-tooltip>View Details</q-tooltip>
                   </q-btn>
-                  <q-btn
-                    flat
-                    round
-                    dense
-                    size="sm"
-                    icon="delete_outline"
-                    color="negative"
-                    @click="confirmDelete(props.row)"
-                  >
-                    <q-tooltip class="bg-negative">Delete Order</q-tooltip>
-                  </q-btn>
                 </div>
               </q-td>
             </template>
@@ -149,14 +138,12 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useQuasar } from 'quasar'
 import { db } from 'src/services/firebase'
-import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
 
 import POSOrderDialog from 'src/components/ordering/POSOrderingDialog.vue'
 import ReceiptDialog from 'src/components/ordering/ReceiptDialog.vue'
 
-const $q = useQuasar()
 
 // State
 const orders = ref([])
@@ -322,25 +309,6 @@ const formatTotal = (row) => {
   }
 
   return `$${Number(val).toFixed(2)}`
-}
-
-// --- ACTIONS ---
-const confirmDelete = (order) => {
-  $q.dialog({
-    title: 'Delete Order',
-    message: `Are you sure you want to delete order #${order.id.substring(0, 8)}?`,
-    persistent: true,
-    ok: { label: 'Delete', color: 'negative', flat: true },
-    cancel: { label: 'Cancel', color: 'grey-8', flat: true },
-  }).onOk(async () => {
-    try {
-      await deleteDoc(doc(db, 'orders', order.id))
-      $q.notify({ message: 'Order deleted successfully', color: 'positive', icon: 'check_circle' })
-    } catch (error) {
-      console.error(error)
-      $q.notify({ message: 'Failed to delete order', color: 'negative', icon: 'error' })
-    }
-  })
 }
 
 const openReceipt = (order) => {
