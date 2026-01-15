@@ -2,22 +2,31 @@
   <q-page class="window-height window-width bg-grey-2">
     <div class="column items-center justify-center full-height">
       <q-card shadow-10 bordered class="glass-card q-pa-xl" style="max-width: 420px; width: 100%">
-        <div class="row justify-center q-mb-md">
-          <q-avatar size="80px" class="bg-white">
-            <img src="https://cdn.quasar.dev/logo-v2/svg/logo.svg" alt="Company Logo" />
+        
+        <div class="column items-center justify-center q-mb-md">
+          <q-avatar size="100px" class="bg-white shadow-2 q-mb-sm">
+            <q-img 
+              :src="displayLogo" 
+              spinner-color="primary"
+              alt="System Logo"
+              fit="contain"
+              style="height: 100%; width: 100%"
+            />
           </q-avatar>
+          <div class="text-h5 text-weight-bold text-primary q-mt-xs text-center">
+            {{ systemName }}
+          </div>
         </div>
 
-        <div class="text-h6 text-center q-mb-xs text-weight-bold">Welcome back</div>
         <div class="text-caption text-center q-mb-lg text-grey-7">Sign in to continue</div>
 
-        <q-form @submit="onEmailSubmit" class="q-gutter-y-md">
+        <q-form @submit="onLoginSubmit" class="q-gutter-y-md">
           <q-input
-            v-model="email"
-            label="Email Address"
+            v-model="identifier"
+            label="Email or Username"
             dense
             class="input-underline"
-            :class="{ 'validation-error': isEmailError, 'validation-success': isEmailSuccess }"
+            :class="{ 'validation-error': isIdentifierError, 'validation-success': isIdentifierSuccess }"
             color="primary"
             :disable="loading"
           >
@@ -25,7 +34,7 @@
               <q-icon name="email" />
             </template>
             <template v-slot:append>
-              <q-icon name="check_circle" color="positive" v-if="isEmailSuccess" />
+              <q-icon name="check_circle" color="positive" v-if="isIdentifierSuccess" />
             </template>
           </q-input>
 
@@ -68,45 +77,109 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-
-// Firebase Imports (Removed signInAnonymously)
+import { useAuthStore } from 'src/features/index.js'
+import { useSystemSettingsStore } from 'src/stores/systemSettingsStore' // Import the store
 import { signInWithEmailAndPassword } from 'firebase/auth'
-import { auth } from 'src/services/firebase'
+import { auth, db } from 'src/services/firebase'
+import { collection, getDocs, query, where, limit } from 'firebase/firestore'
 
 const router = useRouter()
 const $q = useQuasar()
+const authStore = useAuthStore()
+const systemStore = useSystemSettingsStore() // Initialize store
 
-// State
-const email = ref('')
+const identifier = ref('')
 const password = ref('')
 const isPwdHidden = ref(true)
 const loading = ref(false)
 
-// Validation Logic
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const usernamePattern = /^[a-zA-Z0-9_.]{3,30}$/
 
-const isEmailSuccess = computed(() => {
-  return email.value.length > 0 && emailPattern.test(email.value)
+// --- Computed Properties for System Info ---
+const displayLogo = computed(() => {
+  // Use uploaded logo, or default path, or a hard fallback
+  return systemStore.settings?.systemLogo || 
+         systemStore.settings?.defaultLogo || 
+         'https://cdn.quasar.dev/logo-v2/svg/logo.svg'
 })
 
-const isEmailError = computed(() => {
-  return email.value.length > 0 && !emailPattern.test(email.value)
+const systemName = computed(() => {
+  return systemStore.settings?.systemName || 'POS System'
 })
 
-// --- Email/Password Login Logic ---
-const onEmailSubmit = async () => {
-  if (!email.value || !password.value) {
-    $q.notify({ type: 'warning', message: 'Please enter email and password' })
+// Fetch settings when the login page mounts
+onMounted(async () => {
+  await systemStore.fetchSettings()
+})
+
+const isIdentifierSuccess = computed(() => {
+  if (!identifier.value) return false
+  return emailPattern.test(identifier.value) || usernamePattern.test(identifier.value)
+})
+
+const isIdentifierError = computed(() => {
+  if (!identifier.value) return false
+  return !emailPattern.test(identifier.value) && !usernamePattern.test(identifier.value)
+})
+
+const onLoginSubmit = async () => {
+  if (!identifier.value || !password.value) {
+    $q.notify({ type: 'warning', message: 'Please enter email/username and password' })
+    return
+  }
+  if (password.value.length < 6) {
+    $q.notify({ type: 'warning', message: 'Password must be at least 6 characters' })
     return
   }
 
   loading.value = true
 
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value)
+    const adminEmail = authStore.user.email
+    const adminUsername = authStore.user.username
+    const adminPassword = authStore.user.password
+    
+    const isAdminIdentifier =
+      identifier.value.toLowerCase() === adminEmail.toLowerCase() ||
+      identifier.value.toLowerCase() === adminUsername.toLowerCase()
+
+    if (isAdminIdentifier && password.value === adminPassword) {
+      $q.notify({
+        color: 'positive',
+        message: 'Admin login successful',
+        icon: 'verified_user',
+        position: 'top',
+      })
+      router.push('/ordering')
+      return
+    }
+
+    let resolvedEmail = ''
+    if (emailPattern.test(identifier.value)) {
+      resolvedEmail = identifier.value
+    } else {
+      const q = query(collection(db, 'users'), where('username', '==', identifier.value), limit(1))
+      const snap = await getDocs(q)
+      if (snap.empty) {
+        $q.notify({ color: 'negative', message: 'Username not found', icon: 'report_problem' })
+        loading.value = false
+        return
+      }
+      const doc = snap.docs[0]
+      const data = doc.data()
+      resolvedEmail = data.email
+      if (!resolvedEmail || !emailPattern.test(resolvedEmail)) {
+        $q.notify({ color: 'negative', message: 'User account has no valid email', icon: 'report_problem' })
+        loading.value = false
+        return
+      }
+    }
+
+    const userCredential = await signInWithEmailAndPassword(auth, resolvedEmail, password.value)
 
     console.log('Login successful:', userCredential.user.uid)
 

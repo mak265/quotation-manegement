@@ -73,49 +73,52 @@
               </q-tr>
             </template>
 
-            <template v-slot:body-cell-id="props">
-              <q-td :props="props">
-                <span class="text-mono text-grey-8 text-weight-medium">
-                  #{{ props.value.substring(0, 8) }}...
-                </span>
-                <q-tooltip>Full ID: {{ props.value }}</q-tooltip>
-              </q-td>
-            </template>
+            <template v-slot:body="props">
+              <q-tr :props="props">
+                <q-td key="id" :props="props">
+                  <span class="text-mono text-grey-8 text-weight-medium">
+                    {{ props.pageIndex + 1 }}
+                  </span>
+                </q-td>
 
-            <template v-slot:body-cell-status="props">
-              <q-td :props="props">
-                <q-badge
-                  :color="getStatusColor(props.row.status)"
-                  rounded
-                  class="q-px-sm q-py-xs shadow-1"
-                >
-                  {{ props.row.status }}
-                </q-badge>
-              </q-td>
-            </template>
+                <q-td key="customerName" :props="props">
+                  {{ props.row.customerName || (props.row.customer ? props.row.customer.name : 'Walk-in Customer') }}
+                </q-td>
 
-            <template v-slot:body-cell-total="props">
-              <q-td :props="props" class="text-weight-bold text-primary">
-                {{ formatTotal(props.row) }}
-              </q-td>
-            </template>
+                <q-td key="date" :props="props">
+                  {{ formatDate(props.row.createdAt || props.row.date) }}
+                </q-td>
 
-            <template v-slot:body-cell-actions="props">
-              <q-td :props="props">
-                <div class="row justify-center q-gutter-x-sm">
-                  <q-btn
-                    flat
-                    round
-                    dense
-                    size="sm"
-                    color="grey-7"
-                    icon="visibility"
-                    @click="openReceipt(props.row)"
+                <q-td key="status" :props="props">
+                  <q-badge
+                    :color="getStatusColor(props.row.status)"
+                    rounded
+                    class="q-px-sm q-py-xs shadow-1"
                   >
-                    <q-tooltip>View Details</q-tooltip>
-                  </q-btn>
-                </div>
-              </q-td>
+                    {{ props.row.status }}
+                  </q-badge>
+                </q-td>
+
+                <q-td key="total" :props="props" class="text-weight-bold text-primary">
+                  {{ formatTotal(props.row) }}
+                </q-td>
+
+                <q-td key="actions" :props="props">
+                  <div class="row justify-center q-gutter-x-sm">
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      size="sm"
+                      color="grey-7"
+                      icon="visibility"
+                      @click="openReceipt(props.row)"
+                    >
+                      <q-tooltip>View Details</q-tooltip>
+                    </q-btn>
+                  </div>
+                </q-td>
+              </q-tr>
             </template>
 
             <template v-slot:no-data>
@@ -144,8 +147,6 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
 import POSOrderDialog from 'src/components/ordering/POSOrderingDialog.vue'
 import ReceiptDialog from 'src/components/ordering/ReceiptDialog.vue'
 
-
-// State
 const orders = ref([])
 const products = ref([])
 const loading = ref(true)
@@ -160,64 +161,36 @@ const statusOptions = ['All', 'Pending', 'Paid', 'Shipped', 'Cancelled']
 let unsubscribeOrders = null
 let unsubscribeProducts = null
 
-// --- TABLE COLUMNS ---
 const columns = [
-  { name: 'id', label: 'Order ID', field: 'id', align: 'left', style: 'width: 150px' },
-
-  // --- UPDATED CUSTOMER COLUMN LOGIC ---
+  { name: 'id', label: '#', field: 'id', align: 'left', style: 'width: 50px' },
   {
     name: 'customerName',
     label: 'Customer',
     align: 'left',
     sortable: true,
     field: (row) => {
-      // 1. Check nested object from your screenshot (row.customer.name)
       if (row.customer && typeof row.customer === 'object' && row.customer.name) {
         return row.customer.name
       }
-      // 2. Check flat field (legacy support)
       if (row.customerName) {
         return row.customerName
       }
-      // 3. Fallback
       return 'Walk-in Customer'
     },
   },
-
   {
     name: 'date',
     label: 'Date',
-    // Support both `createdAt` (Timestamp) and `date` (ISO string)
     field: (row) => row.createdAt || row.date,
     align: 'left',
-    sortable: true,
-    format: (val) => {
-      if (!val) return '-'
-      // If Firestore Timestamp
-      if (val && typeof val.toDate === 'function') {
-        return (
-          val.toDate().toLocaleDateString() +
-          ' ' +
-          val.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        )
-      }
-      // If standard Date string/object
-      const d = new Date(val)
-      return isNaN(d.getTime())
-        ? '-'
-        : d.toLocaleDateString() +
-            ' ' +
-            d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    },
+    sortable: true
   },
   { name: 'status', label: 'Status', field: 'status', align: 'center', sortable: true },
   { name: 'total', label: 'Total Amount', field: 'total', align: 'right', sortable: true },
   { name: 'actions', label: '', field: 'actions', align: 'center', style: 'width: 100px' },
 ]
 
-// --- REALTIME LISTENERS ---
 onMounted(() => {
-  // 1. Fetch Orders
   const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
 
   unsubscribeOrders = onSnapshot(
@@ -230,12 +203,11 @@ onMounted(() => {
       loading.value = false
     },
     (err) => {
-      console.error('Error fetching orders:', err)
+      console.error(err)
       loading.value = false
     },
   )
 
-  // 2. Fetch Products
   const productsQuery = query(collection(db, 'products'))
 
   unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
@@ -251,33 +223,42 @@ onUnmounted(() => {
   if (unsubscribeProducts) unsubscribeProducts()
 })
 
-// --- COMPUTED PROPERTIES ---
 const filteredOrders = computed(() => {
   let list = orders.value
 
-  // Status Filter
   if (statusFilter.value !== 'All') {
     list = list.filter((o) => o.status === statusFilter.value)
   }
 
-  // Search Filter
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter((o) => {
-      // Check ID
       const hasId = o.id && o.id.toLowerCase().includes(q)
-
-      // Check Customer Name (Handle nested object safely)
       const custName = o.customer?.name || o.customerName || ''
       const hasName = custName.toLowerCase().includes(q)
-
       return hasId || hasName
     })
   }
   return list
 })
 
-// --- HELPERS ---
+const formatDate = (val) => {
+  if (!val) return '-'
+  if (val && typeof val.toDate === 'function') {
+    return (
+      val.toDate().toLocaleDateString() +
+      ' ' +
+      val.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    )
+  }
+  const d = new Date(val)
+  return isNaN(d.getTime())
+    ? '-'
+    : d.toLocaleDateString() +
+        ' ' +
+        d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
 const getStatusColor = (status) => {
   const map = {
     Pending: 'orange-7',
@@ -289,26 +270,22 @@ const getStatusColor = (status) => {
 }
 
 const formatTotal = (row) => {
-  // Try to find a pre-calculated total
   let val = row.total || row.totalAmount
 
-  // If no total on the document, calculate it from items
   if (val === undefined || val === null) {
     const items = Array.isArray(row.items) ? row.items : []
     val = items.reduce((acc, item) => {
-      // Handle price fields: unitPrice, price, or productPrice
       const price = Number(item.unitPrice || item.price || item.productPrice || 0)
       const qty = Number(item.quantity || 1)
       return acc + price * qty
     }, 0)
 
-    // Subtract discount if it exists in your data
     if (row.customer && row.customer.discountAmount) {
       val = val - Number(row.customer.discountAmount)
     }
   }
 
-  return `$${Number(val).toFixed(2)}`
+  return `₱${Number(val).toFixed(2)}`
 }
 
 const openReceipt = (order) => {

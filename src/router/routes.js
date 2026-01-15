@@ -50,6 +50,18 @@ const routes = [
           caption: 'Transaction history',
         },
       },
+      {
+        path: '/settings',
+        name: 'Settings',
+        component: () => import('pages/admin/SettingsPage.vue'),
+        meta: {
+          isSidebarItem: true,
+          isManagement: true,
+          label: 'Settings',
+          icon: 'settings',
+          caption: 'System settings',
+        },
+      },
     ],
   },
 

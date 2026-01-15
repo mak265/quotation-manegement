@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', () => {
     password: '123456',
     firstName: 'Super',
     lastName: 'Admin',
+    username: 'superAdmin',
     isEmployee: true,
     roles: ['superAdmin'],
   })
@@ -18,9 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value.roles.includes(role)
   }
 
-  // eslint-disable-next-line no-unused-vars
-  const can = (_action, _resource) => {
-    // Mock permission logic
+  const can = () => {
     return true
   }
 
