@@ -12,7 +12,13 @@ const routes = [
         path: '',
         name: 'Dashboard',
         component: () => import('pages/admin/DashboardPage.vue'),
-        meta: { isSidebarItem: true, label: 'Dashboard', icon: 'dashboard' },
+        meta: {
+          isSidebarItem: true,
+          label: 'Dashboard',
+          icon: 'dashboard',
+          // Permission required to see this link:
+          permissions: ['dashboard:view'],
+        },
       },
       {
         path: '/inventory',
@@ -24,6 +30,8 @@ const routes = [
           label: 'Inventory',
           icon: 'inventory',
           caption: 'Manage products and stock',
+          // Permission required to see this link:
+          permissions: ['inventory:view'],
         },
       },
       {
@@ -36,6 +44,8 @@ const routes = [
           label: 'Ordering',
           icon: 'shopping_cart',
           caption: 'Process customer orders',
+          // Permission required to see this link:
+          permissions: ['ordering:view'],
         },
       },
       {
@@ -48,6 +58,8 @@ const routes = [
           label: 'Transactions',
           icon: 'receipt_long',
           caption: 'Transaction history',
+          // Permission required to see this link:
+          permissions: ['transactions:view'],
         },
       },
       {
@@ -60,13 +72,13 @@ const routes = [
           label: 'Settings',
           icon: 'settings',
           caption: 'System settings',
+          // Permission required to see this link:
+          permissions: ['settings:view'],
         },
       },
     ],
   },
 
-  // Always leave this as last one,
-  // but you can also remove it
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),

@@ -84,16 +84,20 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { useAuthStore } from 'src/features/index.js'
+
+// 1. Import Stores
 import { useSystemSettingsStore } from 'src/stores/systemSettingsStore'
+import { useAuthStore } from 'src/features/index.js' // Ensure path is correct!
+
+// 2. Firebase Imports
 import { signInWithEmailAndPassword } from 'firebase/auth'
-import { auth, db } from 'src/services/firebase'
 import { collection, getDocs, query, where, limit } from 'firebase/firestore'
+import { auth, db } from 'src/services/firebase'
 
 const router = useRouter()
 const $q = useQuasar()
-const authStore = useAuthStore()
 const systemStore = useSystemSettingsStore()
+const authStore = useAuthStore() // Initialize Auth Store
 
 const identifier = ref('')
 const password = ref('')
@@ -101,25 +105,19 @@ const isPwdHidden = ref(true)
 const loading = ref(false)
 const imgError = ref(false)
 
+// Regex Patterns
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const usernamePattern = /^[a-zA-Z0-9_.]{3,30}$/
 const DEFAULT_FALLBACK = 'https://cdn.quasar.dev/logo-v2/svg/logo.svg'
 
+// --- Computed Properties ---
 const displayLogo = computed(() => {
   if (imgError.value) return DEFAULT_FALLBACK
   return systemStore.settings?.systemLogo || systemStore.settings?.defaultLogo || DEFAULT_FALLBACK
 })
 
-const handleImageError = () => {
-  imgError.value = true
-}
-
 const systemName = computed(() => {
   return systemStore.settings?.systemName || 'POS System'
-})
-
-onMounted(async () => {
-  await systemStore.fetchSettings()
 })
 
 const isIdentifierSuccess = computed(() => {
@@ -132,7 +130,17 @@ const isIdentifierError = computed(() => {
   return !emailPattern.test(identifier.value) && !usernamePattern.test(identifier.value)
 })
 
+// --- Methods ---
+const handleImageError = () => {
+  imgError.value = true
+}
+
+onMounted(async () => {
+  await systemStore.fetchSettings()
+})
+
 const onLoginSubmit = async () => {
+  // 1. Client-side Validation
   if (!identifier.value || !password.value) {
     $q.notify({ type: 'warning', message: 'Please enter email/username and password' })
     return
@@ -145,72 +153,92 @@ const onLoginSubmit = async () => {
   loading.value = true
 
   try {
-    const adminEmail = authStore.user.email
-    const adminUsername = authStore.user.username
-    const adminPassword = authStore.user.password
+    let loginEmail = identifier.value
 
-    const isAdminIdentifier =
-      identifier.value.toLowerCase() === adminEmail.toLowerCase() ||
-      identifier.value.toLowerCase() === adminUsername.toLowerCase()
-
-    if (isAdminIdentifier && password.value === adminPassword) {
-      $q.notify({
-        color: 'positive',
-        message: 'Admin login successful',
-        icon: 'verified_user',
-        position: 'top',
-      })
-      router.push('/ordering')
-      return
-    }
-
-    let resolvedEmail = ''
-    if (emailPattern.test(identifier.value)) {
-      resolvedEmail = identifier.value
-    } else {
-      const q = query(collection(db, 'users'), where('username', '==', identifier.value), limit(1))
+    // 2. Resolve Username to Email
+    if (!emailPattern.test(identifier.value)) {
+      const q = query(collection(db, 'user'), where('username', '==', identifier.value), limit(1))
       const snap = await getDocs(q)
-      if (snap.empty) {
-        $q.notify({ color: 'negative', message: 'Username not found', icon: 'report_problem' })
-        loading.value = false
-        return
-      }
-      const doc = snap.docs[0]
-      const data = doc.data()
-      resolvedEmail = data.email
-      if (!resolvedEmail || !emailPattern.test(resolvedEmail)) {
-        $q.notify({
-          color: 'negative',
-          message: 'User account has no valid email',
-          icon: 'report_problem',
-        })
-        loading.value = false
-        return
-      }
+
+      if (snap.empty) throw { code: 'custom/username-not-found' }
+
+      const userRecord = snap.docs[0].data()
+      loginEmail = userRecord.email
+      if (!loginEmail) throw { code: 'custom/invalid-user-record' }
     }
 
-    const userCredential = await signInWithEmailAndPassword(auth, resolvedEmail, password.value)
+    // 3. Authenticate with Firebase Auth
+    const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password.value)
+    const user = userCredential.user
 
-    console.log('Login successful:', userCredential.user.uid)
+    console.log('Firebase Auth successful:', user.uid)
 
+    // 4. Fetch User Role/Profile from Firestore
+    // Using email because your UID and Doc ID might not match
+    const roleQuery = query(collection(db, 'user'), where('email', '==', user.email), limit(1))
+    const roleSnap = await getDocs(roleQuery)
+
+    let userRole = 'staff'
+    let currentUsername = 'User'
+
+    if (!roleSnap.empty) {
+      const userData = roleSnap.docs[0].data()
+      userRole = userData.role || 'staff'
+      currentUsername = userData.username || 'User'
+
+      // --- CRITICAL FIX START ---
+      // We must Populate the Pinia Store BEFORE redirecting
+      // The Router Guard reads 'authStore.user' and 'authStore.permissions'
+
+      authStore.setUser({
+        uid: user.uid,
+        email: user.email,
+        role: userRole,
+        username: currentUsername,
+      })
+
+      // Ensure permissions are fetched so the Router doesn't block us
+      await authStore.fetchPermissions()
+      // --- CRITICAL FIX END ---
+    } else {
+      console.warn('User logged in, but no profile found in "user" collection.')
+      // Still set minimal user data so they don't get stuck in loop
+      authStore.setUser({
+        uid: user.uid,
+        email: user.email,
+        role: 'staff',
+        username: 'User',
+      })
+    }
+
+    // 5. Notify
     $q.notify({
       color: 'positive',
-      message: 'Login successful!',
+      message: `Welcome back, ${currentUsername}!`,
       icon: 'check',
       position: 'top',
     })
 
-    router.push('/dashboard')
+    // 6. Redirect Logic
+    const normalizedRole = userRole.toLowerCase()
+
+    if (normalizedRole === 'admin' || normalizedRole === 'superadmin') {
+      router.push('/ordering')
+    } else {
+      router.push('/dashboard')
+    }
   } catch (error) {
-    console.error('Login Error:', error.code)
+    console.error('Login Error:', error.code || error)
 
     let msg = 'Login failed. Please try again.'
+    // Map Firebase errors
     if (error.code === 'auth/invalid-credential') msg = 'Invalid email or password.'
     if (error.code === 'auth/user-not-found') msg = 'Account not found.'
     if (error.code === 'auth/wrong-password') msg = 'Incorrect password.'
-    if (error.code === 'auth/too-many-requests')
-      msg = 'Too many attempts. Account temporarily locked.'
+    if (error.code === 'auth/too-many-requests') msg = 'Too many attempts. Account locked.'
     if (error.code === 'auth/invalid-email') msg = 'Invalid email format.'
+    if (error.code === 'custom/username-not-found') msg = 'Username not found.'
+    if (error.code === 'custom/invalid-user-record') msg = 'User record is corrupted.'
 
     $q.notify({
       color: 'negative',
