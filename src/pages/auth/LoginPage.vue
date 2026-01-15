@@ -197,8 +197,11 @@ const onLoginSubmit = async () => {
         username: currentUsername,
       })
 
-      // Ensure permissions are fetched so the Router doesn't block us
-      await authStore.fetchPermissions()
+      if (Array.isArray(userData.permissions) && userData.permissions.length > 0) {
+        authStore.setPermissions(userData.permissions)
+      } else {
+        await authStore.fetchPermissions()
+      }
       // --- CRITICAL FIX END ---
     } else {
       console.warn('User logged in, but no profile found in "user" collection.')

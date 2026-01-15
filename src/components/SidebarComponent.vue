@@ -180,7 +180,14 @@ onMounted(() => {
           }
 
           if (!isSuperAdmin.value) {
-            await fetchRolePermissions(currentUserRole.value)
+            if (Array.isArray(userData.permissions) && userData.permissions.length > 0) {
+              fetchedPermissions.value = userData.permissions
+              if (authStore.setPermissions) {
+                authStore.setPermissions(userData.permissions)
+              }
+            } else {
+              await fetchRolePermissions(currentUserRole.value)
+            }
           }
         } else {
           currentUserName.value = 'User (No Profile)'
@@ -226,9 +233,11 @@ const canAccess = (route) => {
   }
 
   if (route.meta?.permissions) {
-    const hasPermission = route.meta.permissions.some((requiredPerm) =>
-      fetchedPermissions.value.includes(requiredPerm),
-    )
+    const hasPermission = route.meta.permissions.some((requiredPerm) => {
+      if (fetchedPermissions.value.includes(requiredPerm)) return true
+      const resource = String(requiredPerm).split(':')[0]
+      return fetchedPermissions.value.some((p) => p.startsWith(resource + ':'))
+    })
     return hasPermission
   }
 

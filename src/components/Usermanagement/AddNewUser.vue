@@ -15,6 +15,19 @@
         <div class="col-12 col-md-6">
           <q-input 
             outlined 
+            v-model="email" 
+            label="Email" 
+            type="email"
+            :rules="[
+              val => !!val || 'Email is required',
+              val => /.+@.+\..+/.test(val) || 'Please enter a valid email'
+            ]"
+            lazy-rules
+          />
+        </div>
+        <div class="col-12 col-md-6">
+          <q-input 
+            outlined 
             v-model="password" 
             label="Password" 
             :type="showPassword ? 'text' : 'password'"
@@ -52,27 +65,50 @@ import { useUserManagementStore } from 'src/stores/usermanagementStore.js'
 const emit = defineEmits(['add'])
 
 const username = ref('')
+const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const $q = useQuasar()
 const userStore = useUserManagementStore()
 
 const isFormValid = computed(() => {
-  return username.value.trim() !== '' && password.value.trim() !== ''
+  return username.value.trim() !== '' && 
+         email.value.trim() !== '' && 
+         /.+@.+\..+/.test(email.value) &&
+         password.value.trim() !== ''
 })
 
 const submit = async () => {
   if (!isFormValid.value) return
   try {
-    await userStore.addUser({ username: username.value, password: password.value })
-    $q.notify({ type: 'positive', message: 'User added to database', position: 'top-right', icon: 'check_circle' })
-    emit('add', { username: username.value, password: password.value })
+    await userStore.addUser({ 
+      username: username.value, 
+      email: email.value,
+      password: password.value 
+    })
+    $q.notify({ 
+      type: 'positive', 
+      message: 'User added to database', 
+      position: 'top-right', 
+      icon: 'check_circle' 
+    })
+    emit('add', { 
+      username: username.value, 
+      email: email.value,
+      password: password.value 
+    })
     username.value = ''
+    email.value = ''
     password.value = ''
     showPassword.value = false
   } catch (e) {
     console.error(e)
-    $q.notify({ type: 'negative', message: 'Failed to add user', position: 'top-right', icon: 'error' })
+    $q.notify({ 
+      type: 'negative', 
+      message: 'Failed to add user', 
+      position: 'top-right', 
+      icon: 'error' 
+    })
   }
 }
 </script>

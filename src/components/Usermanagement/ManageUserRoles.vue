@@ -2,7 +2,7 @@
   <q-dialog v-model="localDialog" persistent position="right" full-height>
     <q-card class="q-dialog-plugin" style="min-width: 450px; height: 100vh">
       <q-card-section class="row items-center justify-between bg-primary text-white q-pb-md">
-        <div class="text-h6">Manage User Roles</div>
+        <div class="text-h6">Manage User Permissions</div>
         <q-btn flat round dense icon="close" color="white" v-close-popup size="sm" />
       </q-card-section>
 
@@ -24,26 +24,23 @@
 
         <div class="q-mb-md">
           <div class="text-subtitle2 text-weight-medium text-blue-grey-9 q-mb-xs">
-            Current Roles
-            <q-badge color="grey" class="q-ml-xs" :label="selectedRoles.length" />
+            Current Permissions
+            <q-badge color="grey" class="q-ml-xs" :label="selectedPermissions.length" />
           </div>
           <div class="q-gutter-xs">
             <q-chip 
-              v-for="role in selectedRoles" 
-              :key="role" 
-              :color="getRoleColor(role)"
+              v-for="perm in selectedPermissions" 
+              :key="perm" 
+              color="primary"
               text-color="white"
               dense
               removable
-              @remove="removeRole(role)"
+              @remove="removePermission(perm)"
             >
-              <q-avatar :color="getRoleDarkColor(role)" text-color="white">
-                {{ getPermissionLabel(role)?.charAt(0).toUpperCase() }}
-              </q-avatar>
-              {{ getPermissionLabel(role) }}
+              {{ perm }}
             </q-chip>
-            <div v-if="!selectedRoles.length" class="text-caption text-grey-6 q-pa-sm">
-              No roles assigned yet
+            <div v-if="!selectedPermissions.length" class="text-caption text-grey-6 q-pa-sm">
+              No permissions assigned yet
             </div>
           </div>
         </div>
@@ -52,51 +49,45 @@
 
         <div class="q-mb-md">
           <div class="text-subtitle2 text-weight-medium text-blue-grey-9 q-mb-xs">
-            Available Roles
+            Available Permissions
           </div>
 
           <div class="row q-col-gutter-xs q-mb-md">
-            <q-btn outline size="sm" color="primary" label="Select All" @click="selectAllRoles" class="col" />
-            <q-btn outline size="sm" color="grey" label="Clear All" @click="clearAllRoles" class="col" />
+            <q-btn outline size="sm" color="primary" label="Select All" @click="selectAllPermissions" class="col" />
+            <q-btn outline size="sm" color="grey" label="Clear All" @click="clearAllPermissions" class="col" />
           </div>
 
           <q-list bordered class="rounded-borders">
-            <q-item 
-              v-for="role in props.availableRoles" 
-              :key="role.value"
-              clickable
-              v-ripple
-              :class="{ 'bg-blue-1': selectedRoles.includes(role.value) }"
-              @click="toggleRole(role.value)"
+            <q-expansion-item
+              v-for="page in pages"
+              :key="page.value"
+              :label="page.label"
+              :caption="getRoleDescription(page.value)"
+              expand-separator
+              :default-opened="false"
             >
-              <q-item-section avatar>
-                <q-checkbox 
-                  v-model="selectedRoles" 
-                  :val="role.value" 
-                  color="primary"
-                  @click.stop
-                />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label class="text-weight-medium">
-                  {{ role.label }}
-                </q-item-label>
-                <q-item-label caption>
-                  {{ getRoleDescription(role.value) }}
-                </q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-badge :color="getRoleColor(role.value)" :label="role.label" class="text-caption" />
-              </q-item-section>
-            </q-item>
+              <q-item v-for="action in actionsByPage[page.value] || []" :key="action.value">
+                <q-item-section avatar>
+                  <q-checkbox
+                    v-model="selectedPermissions"
+                    :val="action.value"
+                    color="primary"
+                  />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-weight-medium">{{ action.label }}</q-item-label>
+                  <q-item-label caption>{{ action.value }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-expansion-item>
           </q-list>
         </div>
 
-        <q-banner v-if="selectedRoles.length > 0" dense class="bg-green-1 text-green-9 q-mb-md">
+        <q-banner v-if="selectedPermissions.length > 0" dense class="bg-green-1 text-green-9 q-mb-md">
           <template v-slot:avatar>
             <q-icon name="check_circle" color="green" />
           </template>
-          {{ selectedRoles.length }} role(s) selected
+          {{ selectedPermissions.length }} permission(s) selected
         </q-banner>
       </q-card-section>
 
@@ -105,10 +96,10 @@
       <q-card-actions align="right" class="q-pa-md">
         <q-btn flat label="Cancel" color="grey" v-close-popup class="q-px-lg" />
         <q-btn 
-          label="Apply Roles" 
+          label="Apply Permissions" 
           color="green"
           @click="save"
-          :disable="!selectedRoles.length"
+          :disable="!selectedPermissions.length"
           class="q-px-lg"
           icon-right="check"
         />
@@ -118,7 +109,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -129,7 +120,42 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'save'])
 
 const localDialog = ref(props.modelValue)
-const selectedRoles = ref([])
+const selectedPermissions = ref([])
+
+const pages = computed(() => (props.availableRoles || []))
+
+const actionsByPage = {
+  Dashboard: [
+    { label: 'View Dashboard', value: 'dashboard:view' },
+  ],
+  Inventory: [
+    { label: 'View Inventory', value: 'inventory:view' },
+    { label: 'Add Category', value: 'inventory:addCategory' },
+    { label: 'Add Product', value: 'inventory:addProduct' },
+    { label: 'Edit Product', value: 'inventory:editProduct' },
+    { label: 'Delete Product', value: 'inventory:deleteProduct' },
+  ],
+  Ordering: [
+    { label: 'View Orders', value: 'ordering:view' },
+    { label: 'Create Order', value: 'ordering:create' },
+    { label: 'Cancel Order', value: 'ordering:cancel' },
+  ],
+  Transactions: [
+    { label: 'View Transactions', value: 'transactions:view' },
+    { label: 'Refund Transaction', value: 'transactions:refund' },
+  ],
+  UserManagement: [
+    { label: 'View Users', value: 'userManagement:view' },
+    { label: 'Create User', value: 'userManagement:create' },
+    { label: 'Edit User', value: 'userManagement:edit' },
+    { label: 'Delete User', value: 'userManagement:delete' },
+    { label: 'Assign Permissions', value: 'userManagement:assign' },
+  ],
+  Settings: [
+    { label: 'View Settings', value: 'settings:view' },
+    { label: 'Update Settings', value: 'settings:update' },
+  ],
+}
 
 watch(() => props.modelValue, (val) => {
   localDialog.value = val
@@ -140,69 +166,38 @@ watch(localDialog, (val) => {
 })
 
 watch(() => props.selectedUser, (user) => {
-  selectedRoles.value = [...(user?.roles || [])]
+  selectedPermissions.value = [...(user?.permissions || [])]
 }, { immediate: true })
 
-const toggleRole = (role) => {
-  const index = selectedRoles.value.indexOf(role)
-  if (index === -1) {
-    selectedRoles.value.push(role)
-  } else {
-    selectedRoles.value.splice(index, 1)
-  }
+const selectAllPermissions = () => {
+  const all = []
+  pages.value.forEach((p) => {
+    const actions = actionsByPage[p.value] || actionsByPage[p.label] || []
+    actions.forEach((a) => all.push(a.value))
+  })
+  selectedPermissions.value = all
 }
 
-const selectAllRoles = () => {
-  selectedRoles.value = (props.availableRoles || []).map((role) => role.value)
+const clearAllPermissions = () => {
+  selectedPermissions.value = []
 }
 
-const clearAllRoles = () => {
-  selectedRoles.value = []
-}
-
-const removeRole = (role) => {
-  const index = selectedRoles.value.indexOf(role)
+const removePermission = (perm) => {
+  const index = selectedPermissions.value.indexOf(perm)
   if (index !== -1) {
-    selectedRoles.value.splice(index, 1)
+    selectedPermissions.value.splice(index, 1)
   }
 }
 
 const save = () => {
   if (!props.selectedUser) return
-  emit('save', [...selectedRoles.value])
+  emit('save', [...selectedPermissions.value])
   localDialog.value = false
-}
-
-const getPermissionLabel = (value) => {
-  const found = (props.availableRoles || []).find((r) => r.value === value)
-  return found ? found.label : value
 }
 
 const getRoleDescription = (value) => {
   const found = (props.availableRoles || []).find((r) => r.value === value)
   return found?.caption || 'Sidebar access'
-}
-
-const getRoleDarkColor = (role) => {
-  switch (role) {
-    case 'admin': return 'red-9'
-    case 'manager': return 'orange-9'
-    case 'user': return 'blue-9'
-    case 'editor': return 'purple-9'
-    case 'viewer': return 'green-9'
-    default: return 'grey-9'
-  }
-}
-
-const getRoleColor = (role) => {
-  switch (role) {
-    case 'admin': return 'red'
-    case 'manager': return 'orange'
-    case 'user': return 'blue'
-    case 'editor': return 'purple'
-    case 'viewer': return 'green'
-    default: return 'grey'
-  }
 }
 </script>
 

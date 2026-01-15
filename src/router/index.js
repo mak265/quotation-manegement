@@ -107,9 +107,12 @@ export default route(function (/* { store, ssrContext } */) {
         return next()
       }
 
-      // 2. Check Permissions Array
-      // We look if ANY of the required permissions exist in the user's permission list
-      const hasPermission = to.meta.permissions.some((perm) => authStore.permissions.includes(perm))
+      // 2. Allow if user has the exact permission OR any permission with the same resource prefix
+      const hasPermission = to.meta.permissions.some((perm) => {
+        if (authStore.permissions.includes(perm)) return true
+        const resource = String(perm).split(':')[0]
+        return authStore.permissions.some((p) => p.startsWith(resource + ':'))
+      })
 
       if (hasPermission) {
         return next()

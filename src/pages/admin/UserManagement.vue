@@ -117,6 +117,15 @@ const editDialog = ref(false)
 const addRolesDialog = ref(false)
 const selectedUser = ref(null)
 
+// Handle add user event from AddNewUser component
+const handleAddUser = async () => {
+  try {
+    await userStore.fetchUsers()
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 // Delete user
 const deleteDialog = ref(false)
 const userToDelete = ref(null)
@@ -136,10 +145,6 @@ const availableRoles = computed(() => {
     }))
 })
 
-// Permission labels handled in child components
-
-// Table columns now defined in UserList component
-
 // Pagination
 const pagination = ref({
   sortBy: 'id',
@@ -147,9 +152,6 @@ const pagination = ref({
   page: 1,
   rowsPerPage: 10
 })
-
-// Search and filter handled inside UserList component
-
 
 const editUser = (user) => {
   editingUser.value = { ...user }
@@ -186,17 +188,17 @@ const addRolesToUser = (user) => {
   addRolesDialog.value = true
 }
 
-// Role selection logic handled in ManageUserRoles component
+// Permission selection logic handled in ManageUserRoles component
 
-const handleSaveAddedRoles = async (roles) => {
+const handleSaveAddedRoles = async (permissions) => {
   if (!selectedUser.value) return
   try {
-    const uniqueRoles = Array.from(new Set(roles))
-    await userStore.updateUser(selectedUser.value.id, { roles: uniqueRoles })
+    const uniquePerms = Array.from(new Set(permissions))
+    await userStore.updateUser(selectedUser.value.id, { permissions: uniquePerms })
     addRolesDialog.value = false
     $q.notify({
       type: 'positive',
-      message: `Updated roles for ${selectedUser.value.username}`,
+      message: `Updated permissions for ${selectedUser.value.username}`,
       icon: 'check_circle',
       position: 'top-right',
       timeout: 2000
@@ -205,15 +207,15 @@ const handleSaveAddedRoles = async (roles) => {
     console.error(e)
     $q.notify({
       type: 'negative',
-      message: 'Failed to update roles',
+      message: 'Failed to update permissions',
       position: 'top-right',
       icon: 'error'
     })
   }
 }
 
-const confirmDeleteUser = (userId) => {
-  userToDelete.value = userId
+const confirmDeleteUser = (user) => {
+  userToDelete.value = typeof user === 'string' ? user : user?.id
   deleteDialog.value = true
 }
 

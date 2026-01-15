@@ -60,5 +60,8 @@ export const useAuthStore = defineStore('auth', {
       // Automatically fetch permissions when user is set
       this.fetchPermissions()
     },
+    setPermissions(perms) {
+      this.permissions = Array.isArray(perms) ? perms : []
+    },
   },
 })

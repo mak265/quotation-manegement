@@ -20,26 +20,32 @@
       </div>
 
       <q-table
-        :rows="filteredUsers"
+        :rows="formattedUsers"
         :columns="columns"
-        row-key="id"
+        row-key="username"
         :loading="loading"
         :pagination="pagination"
         flat
         bordered
       >
-        <template v-slot:body-cell-roles="props">
+        <template v-slot:body-cell-permissions="props">
           <q-td :props="props">
             <div class="q-gutter-xs">
               <q-badge 
-                v-for="role in props.row.roles" 
-                :key="role" 
-                :color="getRoleColor(role)"
+                v-for="permission in props.row.roles" 
+                :key="permission" 
+                :color="getPermissionColor(permission)"
                 class="q-px-sm q-py-xs"
               >
-                {{ getPermissionLabel(role) }}
+                {{ getPermissionLabel(permission) }}
               </q-badge>
             </div>
+          </q-td>
+        </template>
+
+        <template v-slot:body-cell-createdAt="props">
+          <q-td :props="props">
+            {{ props.row.formattedCreatedAt || 'N/A' }}
           </q-td>
         </template>
 
@@ -53,7 +59,7 @@
                 dense
                 flat
                 @click="$emit('manage-roles', props.row)"
-                title="Manage Roles"
+                title="Manage Permissions"
               />
               <q-btn
                 icon="edit"
@@ -70,7 +76,7 @@
                 color="negative"
                 dense
                 flat
-                @click="$emit('delete', props.row.id)"
+                @click="$emit('delete', props.row)"
                 title="Delete User"
               />
             </div>
@@ -95,7 +101,7 @@ const props = defineProps({
   users: { type: Array, default: () => [] },
   availableRoles: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
-  pagination: { type: Object, default: () => ({ sortBy: 'id', descending: false, page: 1, rowsPerPage: 10 }) },
+  pagination: { type: Object, default: () => ({ sortBy: 'username', descending: false, page: 1, rowsPerPage: 10 }) },
 })
 
 defineEmits(['manage-roles', 'edit', 'delete'])
@@ -103,11 +109,10 @@ defineEmits(['manage-roles', 'edit', 'delete'])
 const search = ref('')
 
 const columns = [
-  { name: 'id', label: 'ID', field: 'id', align: 'left', sortable: true, width: '70px' },
   { name: 'username', label: 'Username', field: 'username', align: 'left', sortable: true },
-  { name: 'roles', label: 'All Roles', field: 'roles', align: 'left', sortable: true },
-  { name: 'createdAt', label: 'Created Date', field: 'createdAt', align: 'left', sortable: true, width: '120px' },
-  { name: 'actions', label: 'Actions', field: 'actions', align: 'center', sortable: false, width: '150px' },
+  { name: 'permissions', label: 'Permissions', field: 'roles', align: 'left', sortable: true },
+  { name: 'createdAt', label: 'Created Date', field: 'formattedCreatedAt', align: 'left', sortable: true, width: '200px' },
+  { name: 'actions', label: 'Actions', field: 'actions', align: 'center', sortable: false, width: '180px' },
 ]
 
 const filteredUsers = computed(() => {
@@ -115,20 +120,101 @@ const filteredUsers = computed(() => {
   if (search.value) {
     const searchTerm = search.value.toLowerCase()
     filtered = filtered.filter(user => 
-      user.username.toLowerCase().includes(searchTerm) ||
-      user.roles?.some(role => role.toLowerCase().includes(searchTerm))
+      (user.username && user.username.toLowerCase().includes(searchTerm)) ||
+      (user.roles && user.roles.some(role => role.toLowerCase().includes(searchTerm)))
     )
   }
   return filtered
 })
+
+const formattedUsers = computed(() => {
+  return filteredUsers.value.map(user => {
+    // Try to find the created date in various possible fields
+    let dateValue = user.createdAt || user.created_at || user.createdDate || 
+                    user.created_date || user.dateCreated || user.date_created ||
+                    user.registrationDate || user.registration_date ||
+                    user.created || user.date
+    
+    return {
+      ...user,
+      formattedCreatedAt: formatFirestoreTimestamp(dateValue)
+    }
+  })
+})
+
+const formatFirestoreTimestamp = (timestamp) => {
+  if (!timestamp) {
+    return 'N/A'
+  }
+  
+  try {
+    let date
+    
+    // Check if it's a Firestore Timestamp object
+    if (timestamp && typeof timestamp === 'object' && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
+      // It's a Firestore Timestamp object
+      console.log('Firestore Timestamp object detected:', timestamp)
+      // Convert to JavaScript Date
+      date = new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000)
+    } else if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      // Alternative: if it has a toDate() method
+      date = timestamp.toDate()
+    } else if (timestamp instanceof Date) {
+      // It's already a Date object
+      date = timestamp
+    } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+      // It's a string or number that can be converted to Date
+      date = new Date(timestamp)
+    } else {
+      // Unknown format, return string representation
+      console.log('Unknown timestamp format:', timestamp)
+      return String(timestamp)
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.log('Invalid date:', timestamp)
+      return String(timestamp)
+    }
+    
+    // Format to "January 15, 2026 at 10:00:10 PM UTC+8"
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    
+    const month = monthNames[date.getMonth()]
+    const day = date.getDate()
+    const year = date.getFullYear()
+    
+    // Get time in 12-hour format for UTC+8 (add 8 hours for Philippine Time)
+    const utcHours = date.getUTCHours()
+    const phHours = (utcHours + 8) % 24
+    let hours = phHours
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0')
+    const seconds = date.getUTCSeconds().toString().padStart(2, '0')
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    
+    hours = hours % 12
+    hours = hours ? hours : 12 // the hour '0' should be '12'
+    const formattedHours = hours.toString().padStart(2, '0')
+    
+    // Return in exact format: "January 15, 2026 at 10:00:10 PM UTC+8"
+    return `${month} ${day}, ${year} at ${formattedHours}:${minutes}:${seconds} ${ampm} UTC+8`
+    
+  } catch (e) {
+    console.error('Timestamp formatting error:', e, 'for value:', timestamp)
+    return String(timestamp)
+  }
+}
 
 const getPermissionLabel = (value) => {
   const found = (props.availableRoles || []).find((r) => r.value === value)
   return found ? found.label : value
 }
 
-const getRoleColor = (role) => {
-  switch (role) {
+const getPermissionColor = (permission) => {
+  switch (permission) {
     case 'admin': return 'red'
     case 'manager': return 'orange'
     case 'user': return 'blue'
@@ -136,7 +222,6 @@ const getRoleColor = (role) => {
     case 'viewer': return 'green'
     default: return 'grey'
   }
-  
 }
 </script>
 

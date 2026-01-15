@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { db } from '../services/firebase'
+import { db, auth } from '../services/firebase'
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, Timestamp } from 'firebase/firestore'
+import { createUserWithEmailAndPassword } from 'firebase/auth'
 
 export const useUserManagementStore = defineStore('usermanagementStore', {
   state: () => ({
@@ -24,12 +25,15 @@ export const useUserManagementStore = defineStore('usermanagementStore', {
       }
     },
 
-    async addUser({ username, password, role = 'staff' }) {
+    async addUser({ username, email, password, role = 'staff' }) {
       try {
+        const userCred = await createUserWithEmailAndPassword(auth, email, password)
+        const uid = userCred.user.uid
         const payload = {
           username,
-          password,
+          email,
           role,
+          uid,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
         }
@@ -45,7 +49,11 @@ export const useUserManagementStore = defineStore('usermanagementStore', {
     async updateUser(id, updates) {
       try {
         const ref = doc(db, 'user', id)
-        const payload = { ...updates, updatedAt: Timestamp.now() }
+        const safeUpdates = { ...(updates || {}) }
+        if ('password' in safeUpdates) {
+          delete safeUpdates.password
+        }
+        const payload = { ...safeUpdates, updatedAt: Timestamp.now() }
         await updateDoc(ref, payload)
         const idx = this.users.findIndex(u => u.id === id)
         if (idx !== -1) {
