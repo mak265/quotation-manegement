@@ -62,6 +62,20 @@ const routes = [
           permissions: ['transactions:view'],
         },
       },
+       {
+        path: '/userManagement',
+        name: 'UserManagement',
+        component: () => import('pages/admin/UserManagement.vue'),
+        meta: {
+          isSidebarItem: true,
+          isManagement: true,
+          label: 'User Management',
+          icon: 'profile_long',
+          caption: 'Manage User',
+          // Permission required to see this link:
+          permissions: ['userManagement:view'],
+        },
+      },
       {
         path: '/settings',
         name: 'Settings',
