@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { db, secondaryAuth } from '../services/firebase'
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, Timestamp } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth'
+import { logAudit } from '../services/auditService'
 
 export const useUserManagementStore = defineStore('usermanagementStore', {
   state: () => ({
@@ -39,6 +40,13 @@ export const useUserManagementStore = defineStore('usermanagementStore', {
         }
         const docRef = await addDoc(collection(db, 'user'), payload)
         this.users.push({ id: docRef.id, ...payload })
+        await logAudit({
+          module: 'userManagement',
+          action: 'add',
+          entityType: 'user',
+          entityId: docRef.id,
+          details: { username, email, role }
+        })
         await signOut(secondaryAuth)
         return docRef.id
       } catch (error) {
@@ -60,6 +68,13 @@ export const useUserManagementStore = defineStore('usermanagementStore', {
         if (idx !== -1) {
           this.users[idx] = { ...this.users[idx], ...payload }
         }
+        await logAudit({
+          module: 'userManagement',
+          action: 'edit',
+          entityType: 'user',
+          entityId: id,
+          details: safeUpdates
+        })
       } catch (error) {
         console.error('Error updating user:', error)
         throw error
@@ -70,6 +85,13 @@ export const useUserManagementStore = defineStore('usermanagementStore', {
       try {
         await deleteDoc(doc(db, 'user', id))
         this.users = this.users.filter(u => u.id !== id)
+        await logAudit({
+          module: 'userManagement',
+          action: 'delete',
+          entityType: 'user',
+          entityId: id,
+          details: null
+        })
       } catch (error) {
         console.error('Error deleting user:', error)
         throw error

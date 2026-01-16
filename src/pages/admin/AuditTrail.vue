@@ -64,7 +64,7 @@ const logs = ref([])
 const filterModule = ref('All')
 const filterAction = ref('All')
 const searchQuery = ref('')
-const moduleOptions = ['All', 'inventory', 'ordering']
+const moduleOptions = ['All', 'inventory', 'ordering', 'userManagement']
 const actionOptions = ['All', 'add', 'edit', 'delete']
 
 const columns = [

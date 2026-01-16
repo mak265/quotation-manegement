@@ -338,6 +338,7 @@ import { db } from 'src/services/firebase' // Adjust path to your firebase confi
 import { collection, onSnapshot, query, addDoc, serverTimestamp } from 'firebase/firestore'
 import { useAddonStore } from 'src/stores/addonStore'
 import { useOrderStore } from 'src/stores/orderStore'
+import { logAudit } from 'src/services/auditService'
 
 // Components
 import ProductCard from 'src/components/ordering/ProductCard.vue'
@@ -590,7 +591,19 @@ const submitOrder = async (summaryData) => {
 
   try {
     // 1. Save to Firestore
-    await addDoc(collection(db, 'orders'), orderData)
+    const docRef = await addDoc(collection(db, 'orders'), orderData)
+    await logAudit({
+      module: 'ordering',
+      action: 'add',
+      entityType: 'order',
+      entityId: docRef.id,
+      details: {
+        orderNumber: orderData.orderNumber,
+        status: orderData.status,
+        totalAmount: orderData.totalAmount,
+        customerName: orderData.customerName
+      }
+    })
     await orderStore.fetchOrders()
 
     // 2. (Optional) Update Pinia store if you cache orders there
