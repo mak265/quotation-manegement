@@ -100,10 +100,12 @@ import AddNewUser from 'src/components/Usermanagement/AddNewUser.vue'
 import UserList from 'src/components/Usermanagement/UserList.vue'
 import ManageUserRoles from 'src/components/Usermanagement/ManageUserRoles.vue'
 import { useUserManagementStore } from 'src/stores/usermanagementStore.js'
+import { useAuthStore } from 'src/features/index.js'
 
 const $q = useQuasar()
 const router = useRouter()
 const userStore = useUserManagementStore()
+const authStore = useAuthStore()
 
 const users = computed(() => userStore.users)
 
@@ -195,6 +197,9 @@ const handleSaveAddedRoles = async (permissions) => {
   try {
     const uniquePerms = Array.from(new Set(permissions))
     await userStore.updateUser(selectedUser.value.id, { permissions: uniquePerms })
+    if (authStore.user?.uid && (selectedUser.value.uid === authStore.user.uid || selectedUser.value.email === authStore.user.email)) {
+      authStore.setPermissions(uniquePerms)
+    }
     addRolesDialog.value = false
     $q.notify({
       type: 'positive',

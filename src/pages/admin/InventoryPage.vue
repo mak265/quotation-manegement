@@ -78,12 +78,14 @@
                   label="Add Category"
                   class="q-mr-sm"
                   @click="showAddCategoryDialog = true"
+                  v-if="canAddCategory"
                 />
                 <q-btn
                   color="primary"
                   icon="add"
                   label="Add Product"
                   @click="showAddProductDialog = true"
+                  v-if="canAddProduct"
                 />
                 <q-btn
                   color="secondary"
@@ -99,6 +101,7 @@
                   icon="add"
                   label="Add Add-on"
                   @click="showAddAddonDialog = true"
+                  v-if="canAddAddon"
                 />
               </div>
             </div>
@@ -127,6 +130,7 @@
                     icon="edit"
                     color="primary"
                     @click="openEditDialog(props.row)"
+                    v-if="canEditProduct"
                   />
                   <q-btn
                     flat
@@ -135,6 +139,7 @@
                     icon="delete"
                     color="negative"
                     @click="confirmDelete(props.row)"
+                    v-if="canDeleteProduct"
                   />
                 </q-td>
               </template>
@@ -175,8 +180,8 @@
               </template>
               <template v-slot:body-cell-actions="props">
                 <q-td :props="props">
-                  <q-btn flat round dense icon="edit" color="primary" @click="openEditAddonDialog(props.row)" />
-                  <q-btn flat round dense icon="delete" color="negative" @click="confirmDeleteAddon(props.row)" />
+                  <q-btn flat round dense icon="edit" color="primary" @click="openEditAddonDialog(props.row)" v-if="canEditAddon" />
+                  <q-btn flat round dense icon="delete" color="negative" @click="confirmDeleteAddon(props.row)" v-if="canDeleteAddon" />
                 </q-td>
               </template>
               <template v-slot:no-data>
@@ -389,12 +394,14 @@ import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useProductStore } from '../../stores/productStore'
 import { useCategoryStore } from '../../stores/categoryStore'
 import { useAddonStore } from '../../stores/addonStore'
+import { useAuthStore } from 'src/features/index.js'
 import { useQuasar } from 'quasar'
 
 const $q = useQuasar()
 const productStore = useProductStore()
 const categoryStore = useCategoryStore()
 const addonStore = useAddonStore()
+const authStore = useAuthStore()
 
 const searchQuery = ref('')
 const selectedCategory = ref('All')
@@ -410,6 +417,13 @@ const editingAddon = ref(null)
 const myForm = ref(null)
 const addonFormRef = ref(null)
 
+const canAddCategory = computed(() => authStore.permissions.includes('inventory:addCategory'))
+const canAddProduct = computed(() => authStore.permissions.includes('inventory:addProduct'))
+const canEditProduct = computed(() => authStore.permissions.includes('inventory:editProduct'))
+const canDeleteProduct = computed(() => authStore.permissions.includes('inventory:deleteProduct'))
+const canAddAddon = computed(() => authStore.permissions.includes('addons:add'))
+const canEditAddon = computed(() => authStore.permissions.includes('addons:edit'))
+const canDeleteAddon = computed(() => authStore.permissions.includes('addons:delete'))
 const productForm = reactive({
   productName: '',
   productPrice: 0,

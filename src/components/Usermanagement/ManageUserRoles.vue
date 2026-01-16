@@ -132,8 +132,11 @@ const actionsByPage = {
     { label: 'View Inventory', value: 'inventory:view' },
     { label: 'Add Category', value: 'inventory:addCategory' },
     { label: 'Add Product', value: 'inventory:addProduct' },
+    { label: 'Add Add-on', value: 'addons:add' },
     { label: 'Edit Product', value: 'inventory:editProduct' },
     { label: 'Delete Product', value: 'inventory:deleteProduct' },
+    { label: 'Edit Add-on', value: 'addons:edit' },
+    { label: 'Delete Add-on', value: 'addons:delete' },
   ],
   Ordering: [
     { label: 'View Orders', value: 'ordering:view' },
@@ -166,7 +169,13 @@ watch(localDialog, (val) => {
 })
 
 watch(() => props.selectedUser, (user) => {
-  selectedPermissions.value = [...(user?.permissions || [])]
+  const legacyMap = {
+    'addons:add-addons': 'addons:add',
+  }
+  const incoming = Array.isArray(user?.permissions) ? user.permissions : []
+  selectedPermissions.value = Array.from(
+    new Set(incoming.map((p) => legacyMap[p] || p)),
+  )
 }, { immediate: true })
 
 const selectAllPermissions = () => {
@@ -191,7 +200,11 @@ const removePermission = (perm) => {
 
 const save = () => {
   if (!props.selectedUser) return
-  emit('save', [...selectedPermissions.value])
+  const legacyMap = {
+    'addons:add-addons': 'addons:add',
+  }
+  const normalized = selectedPermissions.value.map((p) => legacyMap[p] || p)
+  emit('save', Array.from(new Set(normalized)))
   localDialog.value = false
 }
 
