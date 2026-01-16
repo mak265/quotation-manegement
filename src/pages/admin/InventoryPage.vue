@@ -42,16 +42,6 @@
                 />
               </div>
               <div class="col-12 col-md-4" v-if="selectedInventoryTab === 'products'">
-                <q-select
-                  v-model="selectedStock"
-                  :options="stockOptions"
-                  outlined
-                  dense
-                  label="Stock"
-                  emit-value
-                />
-              </div>
-              <div class="col-12 col-md-4" v-if="selectedInventoryTab === 'products'">
                 <q-btn-toggle
                   v-model="selectedProductView"
                   spread
@@ -155,23 +145,7 @@
                   />
                 </q-td>
               </template>
-              <template v-slot:body-cell-stock="props">
-                <q-td :props="props">
-                  <q-chip
-                    :color="
-                      props.row.productStock < 10
-                        ? 'negative'
-                        : props.row.productStock < 50
-                          ? 'warning'
-                          : 'positive'
-                    "
-                    text-color="white"
-                    dense
-                  >
-                    {{ props.row.productStock }}
-                  </q-chip>
-                </q-td>
-              </template>
+              <!-- removed stock cell -->
             </q-table>
 
             <div v-if="selectedInventoryTab === 'products' && selectedProductView === 'catalog'">
@@ -202,21 +176,6 @@
                         <div class="text-weight-bold text-primary">
                           ${{ Number(p.productPrice || 0).toFixed(2) }}
                         </div>
-                      </div>
-                      <div class="q-mt-xs">
-                        <q-chip
-                          dense
-                          :color="
-                            Number(p.productStock) < 10
-                              ? 'negative'
-                              : Number(p.productStock) < 50
-                                ? 'warning'
-                                : 'positive'
-                          "
-                          text-color="white"
-                        >
-                          Stock: {{ p.productStock }}
-                        </q-chip>
                       </div>
                     </q-card-section>
                     <q-card-actions align="right">
@@ -337,17 +296,7 @@
               </div>
             </div>
 
-            <q-input
-              v-model.number="productForm.productStock"
-              label="Stock Quantity"
-              type="number"
-              outlined
-              dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Stock is required',
-                (val) => val >= 0 || 'Cannot be negative',
-              ]"
-            />
+            <!-- removed stock quantity input -->
 
             <q-select
               v-model="productForm.productCategory"
@@ -434,21 +383,11 @@
           <q-separator spaced />
           <q-toggle v-model="exportUseTableFilters" label="Use current table filters" />
           <div v-if="!exportUseTableFilters" class="q-mt-md row q-col-gutter-sm">
-            <div class="col-12 col-md-6">
+            <div class="col-12">
               <q-select
                 v-model="exportCategory"
                 :options="categoryOptions"
                 label="Category"
-                outlined
-                dense
-                emit-value
-              />
-            </div>
-            <div class="col-12 col-md-6">
-              <q-select
-                v-model="exportStock"
-                :options="stockOptions"
-                label="Stock"
                 outlined
                 dense
                 emit-value
@@ -556,7 +495,7 @@ const authStore = useAuthStore()
 
 const searchQuery = ref('')
 const selectedCategory = ref('All')
-const selectedStock = ref('All')
+// removed stock filtering
 const selectedInventoryTab = ref('products')
 const selectedProductView = ref('catalog')
 const placeholderImage = 'https://via.placeholder.com/300?text=No+Image'
@@ -593,7 +532,6 @@ const productForm = reactive({
   productName: '',
   productPrice: 0,
   productCost: 0,
-  productStock: 0,
   productCategory: '',
   productImage: '',
 })
@@ -647,7 +585,7 @@ const columns = [
     sortable: true,
     format: (val) => `$${Number(val).toFixed(2)}`,
   },
-  { name: 'stock', label: 'Stock', field: 'productStock', align: 'center', sortable: true },
+  // removed stock column
   { name: 'actions', label: 'Actions', field: 'actions', align: 'center' },
 ]
 const addonColumns = [
@@ -677,7 +615,7 @@ const categoryOptions = computed(() => [
   ...(categoryStore.categories || []).map((c) => c.name),
 ])
 const categoriesForForm = computed(() => (categoryStore.categories || []).map((c) => c.name))
-const stockOptions = ['All', 'Out of Stock', 'Low', 'Medium', 'High']
+// removed stock options
 const addonCategoryOptions = ['Toppings', 'Extras']
 const statusOptions = ['Available', 'Unavailable']
 const productOptions = computed(() =>
@@ -695,22 +633,13 @@ const formatOptions = [
 ]
 const exportUseTableFilters = ref(true)
 const exportCategory = ref('All')
-const exportStock = ref('All')
+// removed export stock filter
 
 const filteredProducts = computed(() => {
   let items = productStore.products || []
   if (selectedCategory.value !== 'All')
     items = items.filter((p) => p.productCategory === selectedCategory.value)
-  if (selectedStock.value !== 'All') {
-    items = items.filter((p) => {
-      const s = Number(p.productStock) || 0
-      if (selectedStock.value === 'Out of Stock') return s === 0
-      if (selectedStock.value === 'Low') return s > 0 && s < 10
-      if (selectedStock.value === 'Medium') return s >= 10 && s < 50
-      if (selectedStock.value === 'High') return s >= 50
-      return true
-    })
-  }
+  // removed stock filtering
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     items = items.filter(
@@ -747,7 +676,6 @@ const openEditDialog = (product) => {
     productName: product.productName,
     productPrice: product.productPrice,
     productCost: product.productCost,
-    productStock: product.productStock,
     productCategory: product.productCategory,
     productImage: product.productImage || '',
   })
@@ -882,7 +810,6 @@ const closeProductDialog = () => {
     productName: '',
     productPrice: 0,
     productCost: 0,
-    productStock: 0,
     productCategory: '',
     productImage: '',
   })
@@ -897,16 +824,7 @@ const getRowsForExport = () => {
   if (exportCategory.value !== 'All') {
     items = items.filter((p) => p.productCategory === exportCategory.value)
   }
-  if (exportStock.value !== 'All') {
-    items = items.filter((p) => {
-      const s = Number(p.productStock) || 0
-      if (exportStock.value === 'Out of Stock') return s === 0
-      if (exportStock.value === 'Low') return s > 0 && s < 10
-      if (exportStock.value === 'Medium') return s >= 10 && s < 50
-      if (exportStock.value === 'High') return s >= 50
-      return true
-    })
-  }
+  // removed export stock filter
   return items
 }
 
@@ -916,13 +834,12 @@ const exportInventoryCSV = () => {
     $q.notify({ color: 'warning', message: 'No products to export', icon: 'warning' })
     return
   }
-  const header = ['Product Name', 'Category', 'Price', 'Cost', 'Stock']
+  const header = ['Product Name', 'Category', 'Price', 'Cost']
   const dataLines = rows.map((p) => [
     p.productName ?? '',
     p.productCategory ?? '',
     Number(p.productPrice ?? 0).toFixed(2),
     Number(p.productCost ?? 0).toFixed(2),
-    String(p.productStock ?? 0),
   ])
   const escape = (v) => {
     const s = String(v).replace(/"/g, '""')
@@ -970,7 +887,6 @@ const exportInventoryPDF = () => {
               <th>Category</th>
               <th>Price</th>
               <th>Cost</th>
-              <th>Stock</th>
             </tr>
           </thead>
           <tbody>
@@ -982,7 +898,6 @@ const exportInventoryPDF = () => {
                 <td>${(p.productCategory ?? '').toString().replace(/</g, '&lt;')}</td>
                 <td>${Number(p.productPrice ?? 0).toFixed(2)}</td>
                 <td>${Number(p.productCost ?? 0).toFixed(2)}</td>
-                <td>${String(p.productStock ?? 0)}</td>
               </tr>`,
               )
               .join('')}
