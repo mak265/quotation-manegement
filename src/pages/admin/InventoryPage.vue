@@ -260,10 +260,6 @@
               </template>
               <template v-slot:body-cell-actions="props">
                 <q-td :props="props">
-<<<<<<< HEAD
-                  <q-btn flat round dense icon="edit" color="primary" @click="openEditAddonDialog(props.row)" v-if="canEditAddon" />
-                  <q-btn flat round dense icon="delete" color="negative" @click="confirmDeleteAddon(props.row)" v-if="canDeleteAddon" />
-=======
                   <q-btn
                     flat
                     round
@@ -271,6 +267,7 @@
                     icon="edit"
                     color="primary"
                     @click="openEditAddonDialog(props.row)"
+                    v-if="canEditAddon"
                   />
                   <q-btn
                     flat
@@ -279,8 +276,8 @@
                     icon="delete"
                     color="negative"
                     @click="confirmDeleteAddon(props.row)"
+                    v-if="canDeleteAddon"
                   />
->>>>>>> b557cb6260765995e827bf49d9567ef935c075fe
                 </q-td>
               </template>
               <template v-slot:no-data>
@@ -573,13 +570,25 @@ const editingAddon = ref(null)
 const myForm = ref(null)
 const addonFormRef = ref(null)
 
-const canAddCategory = computed(() => authStore.permissions.includes('inventory:addCategory'))
-const canAddProduct = computed(() => authStore.permissions.includes('inventory:addProduct'))
-const canEditProduct = computed(() => authStore.permissions.includes('inventory:editProduct'))
-const canDeleteProduct = computed(() => authStore.permissions.includes('inventory:deleteProduct'))
-const canAddAddon = computed(() => authStore.permissions.includes('addons:add'))
-const canEditAddon = computed(() => authStore.permissions.includes('addons:edit'))
-const canDeleteAddon = computed(() => authStore.permissions.includes('addons:delete'))
+const has = (perm) =>
+  authStore.isSuperAdmin ||
+  authStore.permissions.includes('*') ||
+  authStore.permissions.includes(perm)
+const canAddCategory = computed(
+  () => authStore.can('addCategory', 'inventory') || has('inventory:addCategory'),
+)
+const canAddProduct = computed(
+  () => authStore.can('addProduct', 'inventory') || has('inventory:addProduct'),
+)
+const canEditProduct = computed(
+  () => authStore.can('editProduct', 'inventory') || has('inventory:editProduct'),
+)
+const canDeleteProduct = computed(
+  () => authStore.can('deleteProduct', 'inventory') || has('inventory:deleteProduct'),
+)
+const canAddAddon = computed(() => authStore.can('add', 'addons') || has('addons:add'))
+const canEditAddon = computed(() => authStore.can('edit', 'addons') || has('addons:edit'))
+const canDeleteAddon = computed(() => authStore.can('delete', 'addons') || has('addons:delete'))
 const productForm = reactive({
   productName: '',
   productPrice: 0,
