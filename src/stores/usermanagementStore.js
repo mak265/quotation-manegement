@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
-import { db, auth } from '../services/firebase'
+import { db, secondaryAuth } from '../services/firebase'
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, Timestamp } from 'firebase/firestore'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth'
 
 export const useUserManagementStore = defineStore('usermanagementStore', {
   state: () => ({
@@ -27,7 +27,7 @@ export const useUserManagementStore = defineStore('usermanagementStore', {
 
     async addUser({ username, email, password, role = 'staff' }) {
       try {
-        const userCred = await createUserWithEmailAndPassword(auth, email, password)
+        const userCred = await createUserWithEmailAndPassword(secondaryAuth, email, password)
         const uid = userCred.user.uid
         const payload = {
           username,
@@ -39,6 +39,7 @@ export const useUserManagementStore = defineStore('usermanagementStore', {
         }
         const docRef = await addDoc(collection(db, 'user'), payload)
         this.users.push({ id: docRef.id, ...payload })
+        await signOut(secondaryAuth)
         return docRef.id
       } catch (error) {
         console.error('Error adding user:', error)

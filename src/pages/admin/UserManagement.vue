@@ -10,13 +10,16 @@
           </div>
         </div>
 
-        <AddNewUser @add="handleAddUser" />
+        <AddNewUser v-if="canAddUser" @add="handleAddUser" />
 
         <UserList
           :users="users"
           :available-roles="availableRoles"
           :loading="loading"
           :pagination="pagination"
+          :can-manage-roles="canManagePermissions"
+          :can-edit-user="canEditUser"
+          :can-delete-user="canDeleteUser"
           @manage-roles="addRolesToUser"
           @edit="editUser"
           @delete="confirmDeleteUser"
@@ -134,6 +137,27 @@ const userToDelete = ref(null)
 
 // Loading state
 const loading = computed(() => userStore.loading)
+
+// Permission gating
+const has = (perm) =>
+  authStore.isSuperAdmin ||
+  authStore.permissions.includes('*') ||
+  authStore.permissions.includes(perm)
+computed(
+  () => authStore.can('view', 'userManagement') || has('userManagement:view'),
+)
+const canAddUser = computed(
+  () => authStore.can('create', 'userManagement') || has('userManagement:create'),
+)
+const canEditUser = computed(
+  () => authStore.can('edit', 'userManagement') || has('userManagement:edit'),
+)
+const canDeleteUser = computed(
+  () => authStore.can('delete', 'userManagement') || has('userManagement:delete'),
+)
+const canManagePermissions = computed(
+  () => authStore.can('assign', 'userManagement') || has('userManagement:assign'),
+)
 
 // Available permissions sourced from Sidebar routes
 const availableRoles = computed(() => {

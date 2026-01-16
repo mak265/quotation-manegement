@@ -887,6 +887,10 @@ const exportInventoryPDF = () => {
               <th>Category</th>
               <th>Price</th>
               <th>Cost</th>
+<<<<<<< HEAD
+=======
+             
+>>>>>>> 652618933f7dc5e9c1c0875e6e7f01e21d999180
             </tr>
           </thead>
           <tbody>

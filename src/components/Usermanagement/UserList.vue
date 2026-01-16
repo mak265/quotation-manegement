@@ -60,6 +60,7 @@
                 flat
                 @click="$emit('manage-roles', props.row)"
                 title="Manage Permissions"
+                v-if="canManageRoles"
               />
               <q-btn
                 icon="edit"
@@ -69,6 +70,7 @@
                 flat
                 @click="$emit('edit', props.row)"
                 title="Edit User"
+                v-if="canEditUser"
               />
               <q-btn
                 icon="delete"
@@ -78,6 +80,7 @@
                 flat
                 @click="$emit('delete', props.row)"
                 title="Delete User"
+                v-if="canDeleteUser"
               />
             </div>
           </q-td>
@@ -102,6 +105,9 @@ const props = defineProps({
   availableRoles: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
   pagination: { type: Object, default: () => ({ sortBy: 'username', descending: false, page: 1, rowsPerPage: 10 }) },
+  canManageRoles: { type: Boolean, default: false },
+  canEditUser: { type: Boolean, default: false },
+  canDeleteUser: { type: Boolean, default: false },
 })
 
 defineEmits(['manage-roles', 'edit', 'delete'])

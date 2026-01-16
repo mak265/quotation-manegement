@@ -140,8 +140,7 @@ const actionsByPage = {
   ],
   Ordering: [
     { label: 'View Orders', value: 'ordering:view' },
-    { label: 'Create Order', value: 'ordering:create' },
-    { label: 'Cancel Order', value: 'ordering:cancel' },
+    { label: 'New POS Order', value: 'ordering:create' },
   ],
   Transactions: [
     { label: 'View Transactions', value: 'transactions:view' },
@@ -149,10 +148,10 @@ const actionsByPage = {
   ],
   UserManagement: [
     { label: 'View Users', value: 'userManagement:view' },
-    { label: 'Create User', value: 'userManagement:create' },
+    { label: 'Add User', value: 'userManagement:create' },
     { label: 'Edit User', value: 'userManagement:edit' },
     { label: 'Delete User', value: 'userManagement:delete' },
-    { label: 'Assign Permissions', value: 'userManagement:assign' },
+    { label: 'Manage User Permissions', value: 'userManagement:assign' },
   ],
   Settings: [
     { label: 'View Settings', value: 'settings:view' },
