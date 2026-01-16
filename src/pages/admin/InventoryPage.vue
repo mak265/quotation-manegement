@@ -970,7 +970,7 @@ const exportInventoryPDF = () => {
               <th>Category</th>
               <th>Price</th>
               <th>Cost</th>
-              <th>Stock</th>
+             
             </tr>
           </thead>
           <tbody>
